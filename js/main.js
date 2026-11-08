@@ -20,7 +20,7 @@ import {
   fmtTime
 } from './settings.js';
 import * as GRBL from './grbl.js';
-import { loadImageFile, traceImage, rasterizeImage, demoImage, imageToneInfo } from './image.js';
+import { loadImageFile, traceImage, rasterizeImage, squiggleImage, demoImage, imageToneInfo } from './image.js';
 import { parseSvg } from './svg.js';
 import { textToPaths } from './font.js';
 import { cleanPaths, buildGcode, checkBounds } from './gcode.js';
@@ -163,7 +163,11 @@ function syncDrawInputs() {
   $('spacing').value = draw.spacing;
   $('simplify').value = draw.simplify;
   $('bridge').value = draw.bridge;
+  $('squiggleLines').value = draw.squiggleLines;
+  $('squiggleAmount').value = draw.squiggleAmount;
+  $('squiggleDetail').value = draw.squiggleDetail;
   $('invert').checked = Boolean(draw.invert);
+  $('autoContrast').checked = draw.autoContrast !== false;
   $('dither').checked = Boolean(draw.dither);
   $('oneWay').checked = Boolean(draw.oneWay);
   $('autoDraw').checked = draw.autoDraw !== false;
@@ -193,7 +197,11 @@ function readDrawInputs() {
   draw.spacing = clamp(numValue('spacing', 1), 0.2, 5);
   draw.simplify = clamp(numValue('simplify', 0.2), 0.01, 3);
   draw.bridge = clamp(numValue('bridge', 0), 0, 10);
+  draw.squiggleLines = clamp(numValue('squiggleLines', 60), 10, 200);
+  draw.squiggleAmount = clamp(numValue('squiggleAmount', 1.5), 0.1, 5);
+  draw.squiggleDetail = clamp(numValue('squiggleDetail', 150), 5, 256);
   draw.invert = $('invert').checked;
+  draw.autoContrast = $('autoContrast').checked;
   draw.dither = $('dither').checked;
   draw.oneWay = $('oneWay').checked;
   draw.autoDraw = $('autoDraw').checked;
@@ -224,6 +232,9 @@ function updateLabels() {
   $('vSpacing').textContent = Number(draw.spacing).toFixed(1);
   $('vSimplify').textContent = Number(draw.simplify).toFixed(2);
   $('vBridge').textContent = draw.bridge;
+  $('vSquiggleLines').textContent = Math.round(draw.squiggleLines);
+  $('vSquiggleAmount').textContent = Number(draw.squiggleAmount).toFixed(1);
+  $('vSquiggleDetail').textContent = Math.round(draw.squiggleDetail);
   $('vSvgWidth').textContent = draw.svgWidth;
   $('vSvgTol').textContent = Number(draw.svgTol).toFixed(2);
   $('vFontSize').textContent = draw.fontSize;
@@ -233,9 +244,12 @@ function updateLabels() {
 }
 
 function applyModeVisibility() {
-  const trace = $('imageMode').value === 'trace';
-  $$('.raster-only').forEach((el) => el.classList.toggle('hidden', trace));
+  const mode = $('imageMode').value;
+  const trace = mode === 'trace';
+  const squiggle = mode === 'squiggle';
+  $$('.raster-only').forEach((el) => el.classList.toggle('hidden', trace || squiggle));
   $$('.trace-only').forEach((el) => el.classList.toggle('hidden', !trace));
+  $$('.squiggle-only').forEach((el) => el.classList.toggle('hidden', !squiggle));
 }
 
 function regenOn(id, eventName = 'input') {
@@ -252,10 +266,11 @@ function regenOn(id, eventName = 'input') {
 function bindDrawControls() {
   [
     'imgWidth', 'threshold', 'blur', 'spacing', 'simplify', 'bridge',
+    'squiggleLines', 'squiggleAmount', 'squiggleDetail',
     'imgOffsetX', 'imgOffsetY'
   ].forEach((id) => regenOn(id));
 
-  ['invert', 'dither', 'oneWay'].forEach((id) => regenOn(id, 'change'));
+  ['invert', 'autoContrast', 'dither', 'oneWay'].forEach((id) => regenOn(id, 'change'));
   regenOn('imageMode', 'change');
 
   $('autoDraw').addEventListener('change', () => {
@@ -480,13 +495,27 @@ async function generate({ auto = false } = {}) {
         targetWidthMm: Math.min(draw.imgWidth, profile.work.x),
         threshold: draw.threshold,
         invert: draw.invert,
-        blur: draw.blur
+        blur: draw.blur,
+        autoContrast: draw.autoContrast !== false
       };
       let result;
       if (draw.imageMode === 'trace') {
         result = traceImage(imageEl, {
           ...opts,
           simplifyMm: draw.simplify
+        });
+      } else if (draw.imageMode === 'squiggle') {
+        // Adapted from mitxela/plotterfun's Squiggle algorithm (MIT).
+        result = squiggleImage(imageEl, {
+          ...opts,
+          lines: draw.squiggleLines,
+          amount: draw.squiggleAmount,
+          detail: draw.squiggleDetail
+        });
+        rasterMode = true;
+        result.paths = result.paths.map((path) => {
+          const pts = simplifyPolyline(path.points, draw.simplify);
+          return { ...path, points: pts.length > 1 ? pts : path.points };
         });
       } else {
         rasterMode = true;
@@ -587,7 +616,7 @@ async function generate({ auto = false } = {}) {
   paths = paths.filter((p) => p.points.length > 1);
 
   if (state.source === 'image' && imageIsPhoto && draw.imageMode === 'trace' && paths.length < 4) {
-    toast('This looks like a photo. Outline mode only finds a few contours — choose Scan lines or Dots for photos.', 'warn');
+    toast('This looks like a photo. Outline mode only finds a few contours — try Squiggle or Scan lines.', 'warn');
   }
 
   if (!paths.length) {
@@ -749,9 +778,9 @@ function setImageThumb(image) {
   }
 }
 
-/* LaserGRBL-style starting point for a photograph: dithered scan lines,
+/* Classic halftone starting point for a photograph: dithered scan lines,
  * finer spacing, and one-way rows so backlash does not stripe the image. */
-function applyPhotoPreset() {
+function applyHalftonePreset() {
   draw.imageMode = 'scan';
   draw.dither = true;
   draw.spacing = 0.8;
@@ -764,6 +793,26 @@ function applyPhotoPreset() {
   $('bridge').value = 1;
   $('threshold').value = 128;
   $('oneWay').checked = true;
+  saveDrawSettings(draw);
+  applyModeVisibility();
+  updateLabels();
+}
+
+/* Continuous-line sketch, adapted from mitxela/plotterfun's Squiggle
+ * algorithm. One line per row; very few pen lifts. */
+function applySketchPreset() {
+  draw.imageMode = 'squiggle';
+  draw.squiggleLines = 60;
+  draw.squiggleAmount = 1.2;
+  draw.squiggleDetail = 110;
+  draw.threshold = 128;
+  draw.blur = 1;
+  $('imageMode').value = 'squiggle';
+  $('squiggleLines').value = 60;
+  $('squiggleAmount').value = 1.2;
+  $('squiggleDetail').value = 110;
+  $('threshold').value = 128;
+  $('blur').value = 1;
   saveDrawSettings(draw);
   applyModeVisibility();
   updateLabels();
@@ -782,8 +831,8 @@ function prepareImage(image, name) {
     imageIsPhoto = false;
   }
   if (imageIsPhoto && draw.imageMode === 'trace') {
-    applyPhotoPreset();
-    toast('Photo preset: Scan lines + dither, 0.8 mm spacing, one-way rows. Untick one-way to save time.', 'warn');
+    applyHalftonePreset();
+    toast('Photo detected — using Scan lines + dither. Press Sketch for a continuous-line version.', 'warn');
   }
   setImageThumb(image);
 }
@@ -900,8 +949,14 @@ function wireFiles() {
   });
 
   $('btnPhotoPreset').addEventListener('click', () => {
-    applyPhotoPreset();
-    toast('Photo preset applied: Scan lines + dither, 0.8 mm spacing, one-way rows.');
+    applyHalftonePreset();
+    toast('Photo preset: Scan lines + dither, 0.8 mm spacing, one-way rows.');
+    if (imageEl) generate();
+  });
+
+  $('btnSketchPreset').addEventListener('click', () => {
+    applySketchPreset();
+    toast('Sketch preset: Squiggle, one continuous line per row.');
     if (imageEl) generate();
   });
 
@@ -1018,6 +1073,18 @@ async function startDrawing() {
       return;
     }
   }
+
+  // A previous Pause leaves GRBL in Hold. Resume before sending the job.
+  if (serial.state === 'Hold') {
+    setProgress(0, 'resuming…');
+    try { await serial.resume(); } catch { /* the next status will tell */ }
+    if (!(await waitForIdle(6000))) {
+      setProgress(0, 'paused');
+      toast('The controller is paused. Press Resume or reconnect, then draw again.', 'warn');
+      return;
+    }
+  }
+  serial.writeRaw('?').catch(() => {});
 
   // Re-check against the current paper size one last time. This catches the
   // case where the user edited Settings after generating the toolpath.

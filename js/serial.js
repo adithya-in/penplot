@@ -261,6 +261,10 @@ export class GrblSerial extends EventTarget {
           const short = line.length > 60 ? `${line.slice(0, 60)}…` : line;
           throw new Error(`${err.message} (line ${i + 1}: ${short})`);
         }
+        // Ask for a position report every few lines. The normal 300 ms timer
+        // is throttled when Chrome is in the background; this keeps the live
+        // marker moving while a job is streaming.
+        if (i % 3 === 0) this.writeRaw('?').catch(() => {});
         if (onProgress && (i % 10 === 0 || i === total - 1)) onProgress(i + 1, total);
       }
     } finally {

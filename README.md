@@ -261,22 +261,39 @@ plotted before sending it. The dashed blue rectangle is the image boundary.
 manually.
 
 If the image is a photo, the app detects the many mid-grey tones and switches
-from **Outline** to a photo-friendly preset: **Scan lines + Dither**, 0.8 mm
-spacing and one-way rows. You can re-apply it any time with the **Photo**
-button. Outline mode on a photo only keeps a handful of contours, which looks
-like random lines.
+from **Outline** to the **Photo** preset: **Scan lines + Dither**, 0.8 mm
+spacing and one-way rows. Press **Sketch** for a **continuous-line Squiggle**
+drawing instead. Outline mode on a photo only keeps a handful of contours,
+which looks like random lines.
 
 A single-colour pen cannot reproduce continuous grey. Photos are drawn as a
 **halftone**: dithered black dots/segments that the eye blends into shades.
 Expect an artistic approximation, not a photocopy.
 
 - **Threshold** now works in the intuitive direction: higher = more ink.
+- **Auto contrast** stretches a washed-out photo to the full black-to-white
+  range. Keep it on for phone photos; turn it off if the original contrast is
+  intentional.
 - **Dither** converts greys into a fine black/white pattern; leave it on for photos.
 - **One-way scan** draws every row left-to-right instead of snaking. It is
   slower (the pen returns across the row) but removes the horizontal stripes
   caused by backlash in the 28BYJ gearboxes and belts.
 - For the most detail, use **Dots** with `Dither` and `Line spacing` 0.6–0.8 mm.
   It is slow because the pen lifts between dots.
+
+### Image — **Squiggle (Sketch)**
+Adapted from [mitxela/plotterfun](https://github.com/mitxela/plotterfun) (MIT).
+It draws **one continuous wavy line per row**. Dark pixels get a larger wave
+amplitude and a faster oscillation; light areas flatten out or are skipped.
+Because there is only one pen lift per row, this is much faster and cleaner on a
+slow 28BYJ plotter than hundreds of dithered segments.
+
+- **Lines** — number of rows (10–200). More lines = more detail and longer plot.
+- **Wave amount** — how far the line swings (0.1–5).
+- **Detail** — wave frequency (5–256). Lower = smoother, higher = denser texture.
+
+Press **Sketch** to apply the preset. It is an artistic line drawing, not a
+photocopy; use **Photo** (halftone) for a more photographic result.
 
 ### Image — **Scan lines**
 Converts the image to horizontal strokes, one per raster line. Best for photos
@@ -486,6 +503,7 @@ Press **Unlock** first; then fix the setting that re-triggers it.
 | Nothing fits on the paper | Check `Paper X/Y`, image offsets and width. The warning banner tells you which axis is outside; the app clamps automatically. |
 | Image trace looks like random lines or almost nothing | Use **Scan lines** or **Dots** for a photo; **Outline** is only for logos and line art. The preview now shows the source image behind the paths so you can check the fit. |
 | Photo comes out as black/white stripes or a blob | Press **Photo** (Scan + Dither, 0.8 mm, one-way). Lower **Threshold** or tick **Invert** if the background is dark. A single pen cannot make continuous grey — dithered halftone is the closest result. |
+| Photo looks like a mesh or scribble | Press **Photo** for the halftone version, or reduce **Lines**, **Wave amount** and **Detail** in **Sketch** mode. |
 | Rows are shifted or the image looks torn | Turn on **One-way scan**, lower draw feed/accel, and check belt tension and pulley set screws. 28BYJ gearboxes have backlash; serpentine rows exaggerate it. |
 | Image is too coarse / missing detail | Use a larger **Width**, `Line spacing` 0.6–0.8 mm, and **Dots** + **Dither**. Use a finer pen. |
 | Image is not centred on the paper | Press **Center** in the Image tab. It fits the image inside the paper and sets both offsets. |
@@ -522,7 +540,7 @@ js/main.js                 UI state machine and workflow
 js/serial.js               Web Serial transport + ok-handshake streaming
 js/grbl.js                 GRBL commands (settings, jog, pen, zero, unlock)
 js/settings.js             machine profile + localStorage persistence
-js/image.js                image → trace/raster/dot paths
+js/image.js                image → trace/raster/dot/squiggle paths
 js/trace.js                marching-squares contour tracing + simplification
 js/svg.js                  SVG import, transforms, Bézier flattening
 js/font.js + js/hershey.js single-stroke Hershey text
@@ -557,3 +575,7 @@ The original plotter build this project was based on:
 <https://www.pcbway.com/project/shareproject/Build_a_simple_3D_Arduino_Mini_CNC_Plotter_e2c3f905.html>
 
 The Hershey font data is public domain.
+
+The **Squiggle** and **Auto contrast** image algorithms are adapted from
+[mitxela/plotterfun](https://github.com/mitxela/plotterfun), which is MIT
+licensed. The rest of the web app is original for this project.

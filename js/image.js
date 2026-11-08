@@ -34,6 +34,37 @@ export function imageToGray(img, width, height) {
   return { gray, width, height };
 }
 
+/* Stretch the histogram to full black/white. Ported from plotterfun's
+ * autocontrast helper (MIT); this rescues low-contrast phone photos before
+ * thresholding or dithering. */
+export function autoLevels(gray, cutoff = 0.005) {
+  const hist = new Uint32Array(256);
+  for (let i = 0; i < gray.length; i++) {
+    const v = Math.max(0, Math.min(255, Math.round(gray[i])));
+    hist[v]++;
+  }
+  const target = cutoff * gray.length;
+  let low = 0;
+  let high = 255;
+  let acc = 0;
+  for (let i = 0; i < 256; i++) {
+    acc += hist[i];
+    if (acc > target) { low = i; break; }
+  }
+  acc = 0;
+  for (let i = 255; i >= 0; i--) {
+    acc += hist[i];
+    if (acc > target) { high = i; break; }
+  }
+  if (high - low < 8) return gray;
+  const scale = 255 / (high - low);
+  const out = new Float32Array(gray.length);
+  for (let i = 0; i < gray.length; i++) {
+    out[i] = Math.max(0, Math.min(255, (gray[i] - low) * scale));
+  }
+  return out;
+}
+
 /* Rough image classification used to choose a sensible conversion mode.
  * Photos and gradients contain many mid-grey pixels; logos and line art are
  * almost entirely black or white. */
@@ -218,6 +249,7 @@ export function traceImage(img, opts) {
     threshold = 128,
     invert = false,
     blur = 1,
+    autoContrast = true,
     simplifyMm = 0.2
   } = opts;
 
@@ -225,7 +257,8 @@ export function traceImage(img, opts) {
   const w = Math.max(8, Math.round(img.width * scale));
   const h = Math.max(8, Math.round(img.height * scale));
   const { gray } = imageToGray(img, w, h);
-  const blurred = boxBlur(gray, w, h, blur);
+  const leveled = autoContrast ? autoLevels(gray) : gray;
+  const blurred = boxBlur(leveled, w, h, blur);
   const mask = makeMask(blurred, w, h, { threshold, invert, dither: false });
 
   const cell = targetWidthMm / w;
@@ -255,16 +288,80 @@ export function rasterizeImage(img, opts) {
     dither = false,
     bridge = 0,
     oneWay = false,
+    autoContrast = true,
     maxCells = 90000
   } = opts;
 
   const { w, h, cell } = rasterGrid(img, targetWidthMm, spacingMm, maxCells);
   const { gray } = imageToGray(img, w, h);
-  const blurred = boxBlur(gray, w, h, blur);
+  const leveled = autoContrast ? autoLevels(gray) : gray;
+  const blurred = boxBlur(leveled, w, h, blur);
   const mask = makeMask(blurred, w, h, { threshold, invert, dither });
   const paths = rasterPaths(mask, w, h, cell, { mode, bridge, oneWay });
 
   return { paths, width: targetWidthMm, height: h * cell, cells: w * h, grid: { w, h, cell } };
+}
+
+/* Continuous-line "squiggle" raster, adapted from mitxela/plotterfun (MIT).
+ * One wavy line per row. Dark pixels get a larger amplitude and a faster
+ * oscillation, so the image appears as a dense sketch. Unlike dithering,
+ * this produces one long path per row instead of hundreds of tiny strokes,
+ * which suits a slow pen plotter with backlash. */
+export function squiggleImage(img, opts) {
+  const {
+    targetWidthMm = 100,
+    lines = 60,
+    amount = 1.5,
+    detail = 150,
+    threshold = 128,
+    invert = false,
+    blur = 1,
+    autoContrast = true,
+    maxPixels = 640
+  } = opts;
+
+  const scale = Math.min(1, maxPixels / Math.max(img.width, img.height));
+  const w = Math.max(16, Math.round(img.width * scale));
+  const h = Math.max(16, Math.round(img.height * scale));
+  const { gray } = imageToGray(img, w, h);
+  const leveled = autoContrast ? autoLevels(gray) : gray;
+  const blurred = boxBlur(leveled, w, h, blur);
+  const cell = targetWidthMm / w;
+
+  const lineCount = Math.max(4, Math.round(lines));
+  const yStep = Math.max(1, Math.round(h / lineCount));
+  const amp = Math.max(0.1, amount);
+  const freq = Math.max(5, detail);
+  // Keep the wave inside its row band. Plotterfun's original amplitude is tied
+  // to the line count, which overlaps rows on small images and turns the plot
+  // into a solid scribble.
+  const amplitudePx = amp * Math.max(0.75, yStep * 0.8);
+  const cutoff = 6;
+  const paths = [];
+
+  for (let y = 0; y < h; y += yStep) {
+    let a = 0;
+    let pts = [];
+    for (let x = 0; x < w; x++) {
+      let grayV = blurred[y * w + x];
+      if (invert) grayV = 255 - grayV;
+      // threshold 128 = neutral; higher threshold = darker drawing.
+      const z = Math.max(0, Math.min(255, 127 + threshold - grayV));
+      if (z < cutoff) {
+        if (pts.length > 1) paths.push({ points: pts, closed: false });
+        pts = [];
+        a = 0;
+        continue;
+      }
+      const r = amplitudePx * (z / 255);
+      a += z / freq;
+      const yy = y + Math.sin(a) * r;
+      pts.push({ x: x * cell, y: (h - yy) * cell });
+    }
+    if (pts.length > 1) paths.push({ points: pts, closed: false });
+  }
+
+  return { paths, width: targetWidthMm, height: h * cell, lines: lineCount };
 }
 
 /* Simple built-in demo drawing so the app can be tried without a file. */

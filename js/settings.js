@@ -33,11 +33,15 @@ export const DRAW_DEFAULTS = {
   threshold: 128,
   invert: false,
   blur: 1,
+  autoContrast: true,  // stretch the histogram before thresholding
   dither: false,
   spacing: 1.0,         // mm between raster lines
   simplify: 0.2,        // mm
   bridge: 0,            // merge gaps up to N cells
   oneWay: false,        // raster rows always left-to-right (no serpentine)
+  squiggleLines: 60,    // rows for the continuous squiggle mode
+  squiggleAmount: 1.2,  // wave amplitude
+  squiggleDetail: 110,  // wave frequency
   imgWidth: 100,        // mm
   imgOffsetX: 0,
   imgOffsetY: 0,

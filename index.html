@@ -55,6 +55,7 @@
               <button class="btn tiny ghost" id="btnDemo">Load demo</button>
               <button class="btn tiny ghost" id="btnCenterImage" title="Fit the image on the paper and centre it">Center</button>
               <button class="btn tiny ghost" id="btnPhotoPreset" title="Scan lines + dither + one-way rows for photos">Photo</button>
+              <button class="btn tiny ghost" id="btnSketchPreset" title="Continuous squiggle lines, adapted from plotterfun">Sketch</button>
             </div>
             <span class="muted tiny" id="imgInfo">no image</span>
           </div>
@@ -63,6 +64,7 @@
             <span>Mode</span>
             <select id="imageMode">
               <option value="trace">Outline — line art, logos</option>
+              <option value="squiggle">Squiggle — photos, continuous line</option>
               <option value="scan">Scan lines — photos</option>
               <option value="columns">Vertical hatch</option>
               <option value="dots">Dots — stipple</option>
@@ -99,8 +101,24 @@
             <input type="range" id="bridge" min="0" max="6" step="1" value="0">
           </label>
 
+          <label class="field squiggle-only">
+            <span>Lines <b id="vSquiggleLines">60</b></span>
+            <input type="range" id="squiggleLines" min="10" max="200" step="1" value="60">
+          </label>
+
+          <label class="field squiggle-only">
+            <span>Wave amount <b id="vSquiggleAmount">1.2</b></span>
+            <input type="range" id="squiggleAmount" min="0.1" max="5" step="0.1" value="1.2">
+          </label>
+
+          <label class="field squiggle-only">
+            <span>Detail <b id="vSquiggleDetail">110</b></span>
+            <input type="range" id="squiggleDetail" min="5" max="256" step="1" value="110">
+          </label>
+
           <div class="checks">
             <label><input type="checkbox" id="invert"> Invert</label>
+            <label title="Stretch the histogram to use the full black-to-white range"><input type="checkbox" id="autoContrast" checked> Auto contrast</label>
             <label class="raster-only"><input type="checkbox" id="dither"> Dither (photos)</label>
             <label class="raster-only" title="Always draw raster rows left-to-right. Slower, but avoids backlash stripes."><input type="checkbox" id="oneWay"> One-way scan</label>
             <label><input type="checkbox" id="autoDraw" checked> Draw after upload</label>
@@ -110,7 +128,7 @@
             <label class="field"><span>Offset X</span><input type="number" id="imgOffsetX" value="0" step="1"></label>
             <label class="field"><span>Offset Y</span><input type="number" id="imgOffsetY" value="0" step="1"></label>
           </div>
-          <p class="hint">The preview shows your image behind the toolpath. <b>Center</b> fits it on the paper. Use <b>Outline</b> for logos, or press <b>Photo</b> for dithered scan lines. A single pen draws photos as a halftone, not continuous grey.</p>
+          <p class="hint">The preview shows your image behind the toolpath. <b>Center</b> fits it on the paper. Use <b>Outline</b> for logos, <b>Photo</b> for a dithered halftone, or <b>Sketch</b> for a continuous-line drawing (adapted from plotterfun). A single pen draws photos as a halftone, not continuous grey.</p>
         </section>
 
         <!-- svg -->
