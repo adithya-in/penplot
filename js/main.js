@@ -20,7 +20,7 @@ import {
   fmtTime
 } from './settings.js';
 import * as GRBL from './grbl.js';
-import { loadImageFile, traceImage, rasterizeImage, squiggleImage, demoImage, imageToneInfo } from './image.js';
+import { loadImageFile, traceImage, contourImage, rasterizeImage, squiggleImage, demoImage, imageToneInfo } from './image.js';
 import { parseSvg } from './svg.js';
 import { textToPaths } from './font.js';
 import { cleanPaths, buildGcode, checkBounds } from './gcode.js';
@@ -218,6 +218,7 @@ function syncDrawInputs() {
   $('imgWidth').value = draw.imgWidth;
   $('imageFeed').value = draw.imageFeed;
   $('threshold').value = draw.threshold;
+  $('contourLevels').value = draw.contourLevels;
   $('blur').value = draw.blur;
   $('brightness').value = draw.brightness;
   $('contrast').value = draw.contrast;
@@ -258,6 +259,7 @@ function readDrawInputs() {
   draw.imgWidth = clamp(numValue('imgWidth', 100), 10, profile.work.x);
   draw.imageFeed = clamp(numValue('imageFeed', 150), 10, 100000);
   draw.threshold = clamp(numValue('threshold', 128), 0, 255);
+  draw.contourLevels = clamp(numValue('contourLevels', 4), 2, 8);
   draw.blur = clamp(numValue('blur', 1), 0, 4);
   draw.brightness = clamp(numValue('brightness', 0), -100, 100);
   draw.contrast = clamp(numValue('contrast', 0), -100, 100);
@@ -299,6 +301,7 @@ function updateLabels() {
   $('vImgWidth').textContent = draw.imgWidth;
   $('vImageFeed').textContent = draw.imageFeed;
   $('vThreshold').textContent = draw.threshold;
+  $('vContourLevels').textContent = draw.contourLevels;
   $('vBlur').textContent = draw.blur;
   $('vBrightness').textContent = draw.brightness;
   $('vContrast').textContent = draw.contrast;
@@ -320,10 +323,12 @@ function updateLabels() {
 function applyModeVisibility() {
   const mode = $('imageMode').value;
   const trace = mode === 'trace';
+  const contours = mode === 'contours';
   const squiggle = mode === 'squiggle';
-  $$('.raster-only').forEach((el) => el.classList.toggle('hidden', trace || squiggle));
+  $$('.raster-only').forEach((el) => el.classList.toggle('hidden', trace || contours || squiggle));
   $$('.trace-only').forEach((el) => el.classList.toggle('hidden', !trace));
   $$('.squiggle-only').forEach((el) => el.classList.toggle('hidden', !squiggle));
+  $$('.contour-only').forEach((el) => el.classList.toggle('hidden', !contours));
 }
 
 function regenOn(id, eventName = 'input') {
@@ -339,7 +344,7 @@ function regenOn(id, eventName = 'input') {
 
 function bindDrawControls() {
   [
-    'imgWidth', 'imageFeed', 'threshold', 'blur', 'brightness', 'contrast', 'gamma',
+    'imgWidth', 'imageFeed', 'threshold', 'contourLevels', 'blur', 'brightness', 'contrast', 'gamma',
     'spacing', 'simplify', 'bridge',
     'squiggleLines', 'squiggleAmount', 'squiggleDetail',
     'imgOffsetX', 'imgOffsetY'
@@ -602,6 +607,12 @@ async function generate({ auto = false } = {}) {
       if (draw.imageMode === 'trace') {
         result = traceImage(imageEl, {
           ...opts,
+          simplifyMm: draw.simplify
+        });
+      } else if (draw.imageMode === 'contours') {
+        result = contourImage(imageEl, {
+          ...opts,
+          levels: draw.contourLevels,
           simplifyMm: draw.simplify
         });
       } else if (draw.imageMode === 'squiggle') {
@@ -929,6 +940,23 @@ function applySketchPreset(auto = false) {
   updateLabels();
 }
 
+/* Smooth tonal contour lines. Each path is a single text-like stroke, so the
+ * motion is the same kind as the text mode. */
+function applyContourPreset(auto = false) {
+  draw.imageMode = 'contours';
+  draw.contourLevels = 4;
+  draw.threshold = 128;
+  draw.blur = 1;
+  draw.modeAuto = auto;
+  $('imageMode').value = 'contours';
+  $('contourLevels').value = 4;
+  $('threshold').value = 128;
+  $('blur').value = 1;
+  saveDrawSettings(draw);
+  applyModeVisibility();
+  updateLabels();
+}
+
 /* Show a preview of the image in the drop tile and pick a useful starting
  * conversion mode. Photos need scan lines/dither; outline is for line art. */
 function prepareImage(image, name) {
@@ -946,8 +974,8 @@ function prepareImage(image, name) {
 
   if (draw.modeAuto !== false) {
     if (imageIsPhoto) {
-      applySketchPreset(true);
-      toast('Photo detected — using Sketch (continuous line). Press Photo for a halftone.', 'warn');
+      applyContourPreset(true);
+      toast('Photo detected — using Contours (smooth single-line strokes). Press Sketch or Photo for other styles.', 'warn');
     } else {
       draw.imageMode = 'trace';
       draw.modeAuto = true;
@@ -1082,6 +1110,12 @@ function wireFiles() {
   $('btnSketchPreset').addEventListener('click', () => {
     applySketchPreset();
     toast('Sketch preset: Squiggle, one continuous line per row.');
+    if (imageEl) generate();
+  });
+
+  $('btnContourPreset').addEventListener('click', () => {
+    applyContourPreset();
+    toast('Contours preset: smooth tonal lines, like the text strokes.');
     if (imageEl) generate();
   });
 

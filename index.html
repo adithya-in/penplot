@@ -56,6 +56,7 @@
               <button class="btn tiny ghost" id="btnCenterImage" title="Fit the image on the paper and centre it">Center</button>
               <button class="btn tiny ghost" id="btnPhotoPreset" title="Scan lines + dither + one-way rows for photos">Photo</button>
               <button class="btn tiny ghost" id="btnSketchPreset" title="Continuous squiggle lines, adapted from plotterfun">Sketch</button>
+              <button class="btn tiny ghost" id="btnContourPreset" title="Smooth tonal contour lines, like text strokes">Contours</button>
             </div>
             <span class="muted tiny" id="imgInfo">no image</span>
           </div>
@@ -64,6 +65,7 @@
             <span>Mode</span>
             <select id="imageMode">
               <option value="trace">Outline — line art, logos</option>
+              <option value="contours">Contours — smooth tonal lines</option>
               <option value="squiggle">Squiggle — photos, continuous line</option>
               <option value="scan">Scan lines — photos</option>
               <option value="columns">Vertical hatch</option>
@@ -136,6 +138,11 @@
             <input type="range" id="squiggleDetail" min="2" max="20" step="0.5" value="6">
           </label>
 
+          <label class="field contour-only">
+            <span>Levels <b id="vContourLevels">4</b></span>
+            <input type="range" id="contourLevels" min="2" max="8" step="1" value="4">
+          </label>
+
           <div class="checks">
             <label><input type="checkbox" id="invert"> Invert</label>
             <label title="Stretch the histogram to use the full black-to-white range"><input type="checkbox" id="autoContrast" checked> Auto contrast</label>
@@ -150,7 +157,7 @@
             <label class="field"><span>Offset X</span><input type="number" id="imgOffsetX" value="0" step="1"></label>
             <label class="field"><span>Offset Y</span><input type="number" id="imgOffsetY" value="0" step="1"></label>
           </div>
-          <p class="hint">The preview shows your image behind the toolpath. <b>Center</b> fits it on the paper. Use <b>Outline</b> for logos, <b>Photo</b> for a dithered halftone, or <b>Sketch</b> for a continuous-line drawing (adapted from plotterfun). A single pen draws photos as a halftone, not continuous grey.</p>
+          <p class="hint">The preview shows your image behind the toolpath. <b>Center</b> fits it on the paper. Use <b>Outline</b> for logos, <b>Contours</b> for smooth text-like lines, <b>Photo</b> for a dithered halftone, or <b>Sketch</b> for a continuous-line drawing. A single pen draws photos as line art, not continuous grey.</p>
         </section>
 
         <!-- svg -->

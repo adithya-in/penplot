@@ -263,11 +263,11 @@ plotted before sending it. The dashed blue rectangle is the image boundary.
 manually.
 
 If the image is a photo, the app detects the mid-grey tones and switches to
-**Sketch** (continuous Squiggle), because one line per row is far kinder to a
-28BYJ plotter than hundreds of dithered strokes. Press **Photo** for a
-**Scan lines + Dither** halftone instead. Press **Outline** for logos and line
-art. A newly uploaded logo switches back to Outline automatically; manually
-choosing a mode stops the automatic switching.
+**Contours**: smooth tonal contour lines, each a single stroke like the text
+mode. Press **Sketch** for a continuous squiggle, or **Photo** for a dithered
+halftone. Press **Outline** for logos and line art. A newly uploaded logo
+switches back to Outline automatically; manually choosing a mode stops the
+automatic switching.
 
 A single-colour pen cannot reproduce continuous grey. Photos are drawn as a
 **halftone**: dithered black dots/segments that the eye blends into shades.
@@ -297,6 +297,16 @@ many short raster/squiggle segments need a slower, more reliable speed.
   caused by backlash in the 28BYJ gearboxes and belts.
 - For the most detail, use **Dots** with `Dither` and `Line spacing` 0.6–0.8 mm.
   It is slow because the pen lifts between dots.
+
+### Image — **Contours**
+The default for photos. The image is converted to **several tonal contour
+levels**; each contour is a smooth single-stroke path, exactly like a text
+stroke. This is the closest match to the working text workflow: few pen lifts,
+long continuous moves, and no high-frequency raster zig-zag. **Levels** controls
+how many tonal lines are drawn (2–8, default 4); more levels = more detail.
+
+Use **Contours** for photos when the other raster modes vibrate or produce a
+mess on a 28BYJ plotter.
 
 ### Image — **Squiggle (Sketch)**
 Adapted from [mitxela/plotterfun](https://github.com/mitxela/plotterfun) (MIT).
@@ -531,7 +541,7 @@ Press **Unlock** first; then fix the setting that re-triggers it.
 | Nothing fits on the paper | Check `Paper X/Y`, image offsets and width. The warning banner tells you which axis is outside; the app clamps automatically. |
 | Image trace looks like random lines or almost nothing | Use **Scan lines** or **Dots** for a photo; **Outline** is only for logos and line art. The preview now shows the source image behind the paths so you can check the fit. |
 | Photo comes out as black/white stripes or a blob | Press **Photo** (Scan + Dither, 0.8 mm, one-way). Lower **Threshold** or tick **Invert** if the background is dark. A single pen cannot make continuous grey — dithered halftone is the closest result. |
-| Photo looks like a mesh or scribble | Press **Photo** for the halftone version, or reduce **Lines**, **Wave amount** and **Wavelength** in **Sketch** mode. |
+| Photo looks like a mesh or scribble | Press **Contours** for smooth text-like lines, or **Photo** for the halftone version. Reduce **Levels**, **Lines**, **Wave amount** and **Wavelength** for simpler output. |
 | Rows are shifted or the image looks torn | Turn on **One-way scan**, lower draw feed/accel, and check belt tension and pulley set screws. 28BYJ gearboxes have backlash; serpentine rows exaggerate it. |
 | Image is too coarse / missing detail | Use a larger **Width**, `Line spacing` 0.6–0.8 mm, and **Dots** + **Dither**. Use a finer pen. |
 | Image extends beyond the paper | The app now clips the toolpath at the edge instead of dragging it along the border. Reduce **Width** or press **Center**. |

@@ -416,6 +416,57 @@ export function traceImage(img, opts) {
   return { paths, width: targetWidthMm, height: h * cell };
 }
 
+/* Multi-level contour drawing. Each threshold produces smooth single-stroke
+ * contours, like a topographic map; the G-code/streaming path is then identical
+ * to text/SVG plotting. This is the image equivalent of the text strokes. */
+export function contourImage(img, opts) {
+  const {
+    targetWidthMm = 100,
+    levels = 4,
+    threshold = 128,
+    invert = false,
+    blur = 1,
+    autoContrast = true,
+    brightness = 0,
+    contrast = 0,
+    gamma = 1,
+    simplifyMm = 0.25,
+    maxPixels = 520
+  } = opts;
+
+  const scale = Math.min(1, maxPixels / Math.max(img.width, img.height));
+  const w = Math.max(8, Math.round(img.width * scale));
+  const h = Math.max(8, Math.round(img.height * scale));
+  const { gray } = imageToGray(img, w, h);
+  const leveled = autoContrast ? autoLevels(gray) : gray;
+  const toned = applyTone(leveled, { brightness, contrast, gamma });
+  const blurred = boxBlur(toned, w, h, blur);
+  const cell = targetWidthMm / w;
+  const eps = Math.max(0.15, simplifyMm / cell);
+  const n = Math.max(2, Math.min(8, Math.round(levels)));
+  const paths = [];
+
+  for (let k = 1; k <= n; k++) {
+    // Spread thresholds across the tonal range. threshold shifts the set.
+    const base = (255 * k) / (n + 1);
+    const level = Math.max(8, Math.min(247, base + (threshold - 128) * 0.5));
+    const mask = new Uint8Array(w * h);
+    for (let i = 0; i < mask.length; i++) {
+      const dark = invert ? blurred[i] > level : blurred[i] < level;
+      mask[i] = dark ? 1 : 0;
+    }
+    const clean = despeckle(mask, w, h);
+    const raw = traceMask(clean, w, h, { simplify: eps, minLength: 3 });
+    for (const p of raw) {
+      const pts = p.points.map((pt) => ({ x: pt.x * cell, y: (h - pt.y) * cell }));
+      if (p.closed && pts.length > 2) pts.push(pts[0]);
+      if (pts.length > 1) paths.push({ points: pts, closed: p.closed });
+    }
+  }
+
+  return { paths, width: targetWidthMm, height: h * cell, levels: n };
+}
+
 /* Raster modes from an image. */
 export function rasterizeImage(img, opts) {
   const {

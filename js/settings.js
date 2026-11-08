@@ -29,7 +29,8 @@ export const DEFAULT_PROFILE = {
 
 export const DRAW_DEFAULTS = {
   // image
-  imageMode: 'trace',   // trace | scan | columns | dots
+  imageMode: 'trace',   // trace | contours | squiggle | scan | columns | dots
+  contourLevels: 4,     // tonal contour levels
   threshold: 128,
   invert: false,
   blur: 1,
