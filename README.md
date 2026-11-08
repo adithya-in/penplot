@@ -220,8 +220,7 @@ scripts and the README are excluded by `.vercelignore` and are not uploaded.
    so they read `0.00` after zeroing.
 6. Set **Pen down Z = 0** and **Pen up Z = 3–5 mm** (or use
    **Calibration wizard** now: *Capture as DOWN* reads 0, lift, *Capture as
-   UP*). Press **Apply**. If the pen is slightly too high or low, use the
-   **Z offset** slider in the Machine panel instead of editing the heights.
+   UP*). Press **Apply**.
 7. Load an image (or the demo), press **Center**, check the preview, and press
    **Draw**. Start with a small, simple drawing and a low draw feed.
 
@@ -263,17 +262,15 @@ plotted before sending it. The dashed blue rectangle is the image boundary.
 manually.
 
 If the image is a photo, the app detects the mid-grey tones and switches to
-**Contours**: smooth tonal contour lines, each a single stroke like the text
-mode. Press **Sketch** for a continuous squiggle, or **Photo** for a dithered
-halftone. Press **Outline** for logos and line art. A newly uploaded logo
-switches back to Outline automatically; manually choosing a mode stops the
-automatic switching.
+**Sketch** (continuous Squiggle), because one line per row is far kinder to a
+28BYJ plotter than hundreds of dithered strokes. Press **Photo** for a
+**Scan lines + Dither** halftone instead. Press **Outline** for logos and line
+art. A newly uploaded logo switches back to Outline automatically; manually
+choosing a mode stops the automatic switching.
 
 A single-colour pen cannot reproduce continuous grey. Photos are drawn as a
 **halftone**: dithered black dots/segments that the eye blends into shades.
-Expect an artistic approximation, not a photocopy. Image G-code uses the
-**Image feed** (150 mm/min by default), not the text Draw feed, because the
-many short raster/squiggle segments need a slower, more reliable speed.
+Expect an artistic approximation, not a photocopy.
 
 - **Threshold** now works in the intuitive direction: higher = more ink.
 - **Auto contrast** stretches a washed-out photo to the full black-to-white
@@ -298,16 +295,6 @@ many short raster/squiggle segments need a slower, more reliable speed.
 - For the most detail, use **Dots** with `Dither` and `Line spacing` 0.6–0.8 mm.
   It is slow because the pen lifts between dots.
 
-### Image — **Contours**
-The default for photos. The image is converted to **several tonal contour
-levels**; each contour is a smooth single-stroke path, exactly like a text
-stroke. This is the closest match to the working text workflow: few pen lifts,
-long continuous moves, and no high-frequency raster zig-zag. **Levels** controls
-how many tonal lines are drawn (2–8, default 4); more levels = more detail.
-
-Use **Contours** for photos when the other raster modes vibrate or produce a
-mess on a 28BYJ plotter.
-
 ### Image — **Squiggle (Sketch)**
 Adapted from [mitxela/plotterfun](https://github.com/mitxela/plotterfun) (MIT).
 It draws **one continuous wavy line per row**. Dark pixels get a larger wave
@@ -317,7 +304,7 @@ slow 28BYJ plotter than hundreds of dithered segments.
 
 - **Lines** — number of rows (10–200). More lines = more detail and longer plot.
 - **Wave amount** — how far the line swings (0.1–5).
-- **Wavelength** — distance between waves in mm (2-20). Higher = smoother and easier for the motors; lower = denser texture.
+- **Detail** — wave frequency (5–256). Lower = smoother, higher = denser texture.
 
 Press **Sketch** to apply the preset. It is an artistic line drawing, not a
 photocopy; use **Photo** (halftone) for a more photographic result.
@@ -377,10 +364,8 @@ The right-hand **Settings** card holds the machine profile:
 | Max rate X / Y | Maximum axis speed, mm/min (also caps jog) | 600 / 600 |
 | Accel X / Y | Acceleration, mm/s² | 50 / 50 |
 | Pen up Z / Pen down Z | Z heights for pen lift | 5 / 0 |
-| Z offset | Added to both pen heights for quick fine-tuning | 0 |
 | Pen feed | Z move speed, mm/min | 200 |
-| Draw feed | XY speed while drawing text/SVG | 250 |
-| Image feed | XY speed for image G-code | 150 |
+| Draw feed | XY speed while drawing | 250 |
 | Travel feed | XY speed while moving with pen up | 300 |
 | Jog feed | XY speed for the jog arrows (capped by Max rate) | 600 |
 | Hold motors | Keep coils energised when idle | on |
@@ -441,10 +426,8 @@ DOWN** (the box now shows work Z `0.00`), lift the pen a few millimetres, then
 
 The pen must be **up** for every travel move and **down** only while drawing.
 Verify with **Pen up** / **Pen down**. If Z moves the wrong way, tick **Invert
-Z** and press **Apply**. If the pen presses too hard or misses lines, use the
-**Z offset** slider in the Machine panel: it adds the same amount to both pen
-heights, so you can raise or lower the whole pen action without editing the
-calibrated values. Press **Pen up** or **Pen down** after moving it to test.
+Z** and press **Apply**. If the pen presses too hard or misses lines, adjust
+**Pen down Z** by 0.1–0.2 mm.
 
 ### Suggested conservative first run
 
@@ -468,9 +451,7 @@ buzz, lower the feed and acceleration.
   controller.
 - **Zero here** sets the work origin (`G10 L20 P1 X0 Y0 Z0`).
 - **Unlock** clears a GRBL alarm (`$X`).
-- **Pen up / Pen down** move Z to the configured heights plus the **Z offset**.
-- **Z offset** slider adds the same amount to both pen heights; move it, then
-  press **Pen up** or **Pen down** to test. It is saved with the profile.
+- **Pen up / Pen down** move Z to the configured heights.
 - **Home** is intentionally blocked unless homing is enabled; there are no limit
   switches.
 - **Simulate** plays the toolpath on the preview without moving the machine.
@@ -541,7 +522,7 @@ Press **Unlock** first; then fix the setting that re-triggers it.
 | Nothing fits on the paper | Check `Paper X/Y`, image offsets and width. The warning banner tells you which axis is outside; the app clamps automatically. |
 | Image trace looks like random lines or almost nothing | Use **Scan lines** or **Dots** for a photo; **Outline** is only for logos and line art. The preview now shows the source image behind the paths so you can check the fit. |
 | Photo comes out as black/white stripes or a blob | Press **Photo** (Scan + Dither, 0.8 mm, one-way). Lower **Threshold** or tick **Invert** if the background is dark. A single pen cannot make continuous grey — dithered halftone is the closest result. |
-| Photo looks like a mesh or scribble | Press **Contours** for smooth text-like lines, or **Photo** for the halftone version. Reduce **Levels**, **Lines**, **Wave amount** and **Wavelength** for simpler output. |
+| Photo looks like a mesh or scribble | Press **Photo** for the halftone version, or reduce **Lines**, **Wave amount** and **Detail** in **Sketch** mode. |
 | Rows are shifted or the image looks torn | Turn on **One-way scan**, lower draw feed/accel, and check belt tension and pulley set screws. 28BYJ gearboxes have backlash; serpentine rows exaggerate it. |
 | Image is too coarse / missing detail | Use a larger **Width**, `Line spacing` 0.6–0.8 mm, and **Dots** + **Dither**. Use a finer pen. |
 | Image extends beyond the paper | The app now clips the toolpath at the edge instead of dragging it along the border. Reduce **Width** or press **Center**. |

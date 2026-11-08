@@ -15,7 +15,7 @@ export const DEFAULT_PROFILE = {
   maxRate: { x: 600, y: 600, z: 200 }, // mm/min (jog/travel cap)
   accel: { x: 50, y: 50, z: 100 },     // mm/s^2
   travel: { x: 150, y: 150, z: 15 },   // soft-limit travel, mm
-  pen: { up: 5, down: 0, feed: 200, dwell: 0.2, zOffset: 0 },
+  pen: { up: 5, down: 0, feed: 200, dwell: 0.2 },
   feed: { draw: 250, travel: 300, jog: 600 },
   softLimits: false,
   homing: false,
@@ -29,8 +29,7 @@ export const DEFAULT_PROFILE = {
 
 export const DRAW_DEFAULTS = {
   // image
-  imageMode: 'trace',   // trace | contours | squiggle | scan | columns | dots
-  contourLevels: 4,     // tonal contour levels
+  imageMode: 'trace',   // trace | scan | columns | dots
   threshold: 128,
   invert: false,
   blur: 1,
@@ -45,10 +44,9 @@ export const DRAW_DEFAULTS = {
   simplify: 0.2,        // mm
   bridge: 0,            // merge gaps up to N cells
   oneWay: false,        // raster rows always left-to-right (no serpentine)
-  imageFeed: 150,       // mm/min for image G-code (text/SVG keep Draw feed)
   squiggleLines: 50,    // rows for the continuous squiggle mode
   squiggleAmount: 1.2,  // wave amplitude
-  squiggleDetail: 6,    // wavelength in mm
+  squiggleDetail: 90,   // wave frequency
   imgWidth: 100,        // mm
   imgOffsetX: 0,
   imgOffsetY: 0,
@@ -131,14 +129,7 @@ export function saveProfile(profile) {
 }
 
 export function loadDrawSettings() {
-  const merged = merge(DRAW_DEFAULTS, read(DRAW_KEY));
-  // Older builds stored a raw pixel frequency (e.g. 90). It is now a
-  // wavelength in mm and must stay in the 2-20 mm range.
-  if (merged.squiggleDetail > 20) {
-    merged.squiggleDetail = DRAW_DEFAULTS.squiggleDetail;
-    write(DRAW_KEY, merged);
-  }
-  return merged;
+  return merge(DRAW_DEFAULTS, read(DRAW_KEY));
 }
 
 export function saveDrawSettings(settings) {

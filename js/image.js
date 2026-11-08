@@ -416,57 +416,6 @@ export function traceImage(img, opts) {
   return { paths, width: targetWidthMm, height: h * cell };
 }
 
-/* Multi-level contour drawing. Each threshold produces smooth single-stroke
- * contours, like a topographic map; the G-code/streaming path is then identical
- * to text/SVG plotting. This is the image equivalent of the text strokes. */
-export function contourImage(img, opts) {
-  const {
-    targetWidthMm = 100,
-    levels = 4,
-    threshold = 128,
-    invert = false,
-    blur = 1,
-    autoContrast = true,
-    brightness = 0,
-    contrast = 0,
-    gamma = 1,
-    simplifyMm = 0.25,
-    maxPixels = 520
-  } = opts;
-
-  const scale = Math.min(1, maxPixels / Math.max(img.width, img.height));
-  const w = Math.max(8, Math.round(img.width * scale));
-  const h = Math.max(8, Math.round(img.height * scale));
-  const { gray } = imageToGray(img, w, h);
-  const leveled = autoContrast ? autoLevels(gray) : gray;
-  const toned = applyTone(leveled, { brightness, contrast, gamma });
-  const blurred = boxBlur(toned, w, h, blur);
-  const cell = targetWidthMm / w;
-  const eps = Math.max(0.15, simplifyMm / cell);
-  const n = Math.max(2, Math.min(8, Math.round(levels)));
-  const paths = [];
-
-  for (let k = 1; k <= n; k++) {
-    // Spread thresholds across the tonal range. threshold shifts the set.
-    const base = (255 * k) / (n + 1);
-    const level = Math.max(8, Math.min(247, base + (threshold - 128) * 0.5));
-    const mask = new Uint8Array(w * h);
-    for (let i = 0; i < mask.length; i++) {
-      const dark = invert ? blurred[i] > level : blurred[i] < level;
-      mask[i] = dark ? 1 : 0;
-    }
-    const clean = despeckle(mask, w, h);
-    const raw = traceMask(clean, w, h, { simplify: eps, minLength: 3 });
-    for (const p of raw) {
-      const pts = p.points.map((pt) => ({ x: pt.x * cell, y: (h - pt.y) * cell }));
-      if (p.closed && pts.length > 2) pts.push(pts[0]);
-      if (pts.length > 1) paths.push({ points: pts, closed: p.closed });
-    }
-  }
-
-  return { paths, width: targetWidthMm, height: h * cell, levels: n };
-}
-
 /* Raster modes from an image. */
 export function rasterizeImage(img, opts) {
   const {
@@ -520,7 +469,6 @@ export function squiggleImage(img, opts) {
     brightness = 0,
     contrast = 0,
     gamma = 1,
-    sampling = 2,
     maxPixels = 640
   } = opts;
 
@@ -536,12 +484,10 @@ export function squiggleImage(img, opts) {
   const lineCount = Math.max(4, Math.round(lines));
   const yStep = Math.max(1, Math.round(h / lineCount));
   const amp = Math.max(0.1, amount);
-  const stepX = Math.max(1, Math.round(sampling));
-  // detail is now a wavelength in millimetres, not a raw pixel frequency.
-  // A 6 mm wave is gentle enough for a 28BYJ + gearbox; the old raw frequency
-  // could reverse Y every 0.6 mm and just vibrate in place.
-  const wavelengthMm = Math.max(1, detail);
-  const periodPx = Math.max(4, wavelengthMm / cell);
+  const freq = Math.max(5, detail);
+  // Keep the wave inside its row band. Plotterfun's original amplitude is tied
+  // to the line count, which overlaps rows on small images and turns the plot
+  // into a solid scribble.
   const amplitudePx = amp * Math.max(0.75, yStep * 0.8);
   const cutoff = 6;
   const paths = [];
@@ -549,7 +495,7 @@ export function squiggleImage(img, opts) {
   for (let y = 0; y < h; y += yStep) {
     let a = 0;
     let pts = [];
-    for (let x = 0; x < w; x += stepX) {
+    for (let x = 0; x < w; x++) {
       let grayV = blurred[y * w + x];
       if (invert) grayV = 255 - grayV;
       // threshold 128 = neutral; higher threshold = darker drawing.
@@ -561,7 +507,7 @@ export function squiggleImage(img, opts) {
         continue;
       }
       const r = amplitudePx * (z / 255);
-      a += (2 * Math.PI / periodPx) * (0.35 + 0.65 * (z / 255));
+      a += z / freq;
       const yy = y + Math.sin(a) * r;
       pts.push({ x: x * cell, y: (h - yy) * cell });
     }

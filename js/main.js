@@ -20,7 +20,7 @@ import {
   fmtTime
 } from './settings.js';
 import * as GRBL from './grbl.js';
-import { loadImageFile, traceImage, contourImage, rasterizeImage, squiggleImage, demoImage, imageToneInfo } from './image.js';
+import { loadImageFile, traceImage, rasterizeImage, squiggleImage, demoImage, imageToneInfo } from './image.js';
 import { parseSvg } from './svg.js';
 import { textToPaths } from './font.js';
 import { cleanPaths, buildGcode, checkBounds } from './gcode.js';
@@ -216,9 +216,7 @@ function clipPaths(paths, work) {
 function syncDrawInputs() {
   $('imageMode').value = draw.imageMode || 'trace';
   $('imgWidth').value = draw.imgWidth;
-  $('imageFeed').value = draw.imageFeed;
   $('threshold').value = draw.threshold;
-  $('contourLevels').value = draw.contourLevels;
   $('blur').value = draw.blur;
   $('brightness').value = draw.brightness;
   $('contrast').value = draw.contrast;
@@ -257,9 +255,7 @@ function syncDrawInputs() {
 function readDrawInputs() {
   draw.imageMode = $('imageMode').value;
   draw.imgWidth = clamp(numValue('imgWidth', 100), 10, profile.work.x);
-  draw.imageFeed = clamp(numValue('imageFeed', 150), 10, 100000);
   draw.threshold = clamp(numValue('threshold', 128), 0, 255);
-  draw.contourLevels = clamp(numValue('contourLevels', 4), 2, 8);
   draw.blur = clamp(numValue('blur', 1), 0, 4);
   draw.brightness = clamp(numValue('brightness', 0), -100, 100);
   draw.contrast = clamp(numValue('contrast', 0), -100, 100);
@@ -269,7 +265,7 @@ function readDrawInputs() {
   draw.bridge = clamp(numValue('bridge', 0), 0, 10);
   draw.squiggleLines = clamp(numValue('squiggleLines', 60), 10, 200);
   draw.squiggleAmount = clamp(numValue('squiggleAmount', 1.5), 0.1, 5);
-  draw.squiggleDetail = clamp(numValue('squiggleDetail', 6), 2, 20);
+  draw.squiggleDetail = clamp(numValue('squiggleDetail', 150), 5, 256);
   draw.invert = $('invert').checked;
   draw.autoContrast = $('autoContrast').checked;
   draw.dither = $('dither').checked;
@@ -299,9 +295,7 @@ function readDrawInputs() {
 
 function updateLabels() {
   $('vImgWidth').textContent = draw.imgWidth;
-  $('vImageFeed').textContent = draw.imageFeed;
   $('vThreshold').textContent = draw.threshold;
-  $('vContourLevels').textContent = draw.contourLevels;
   $('vBlur').textContent = draw.blur;
   $('vBrightness').textContent = draw.brightness;
   $('vContrast').textContent = draw.contrast;
@@ -311,7 +305,7 @@ function updateLabels() {
   $('vBridge').textContent = draw.bridge;
   $('vSquiggleLines').textContent = Math.round(draw.squiggleLines);
   $('vSquiggleAmount').textContent = Number(draw.squiggleAmount).toFixed(1);
-  $('vSquiggleDetail').textContent = Number(draw.squiggleDetail).toFixed(1);
+  $('vSquiggleDetail').textContent = Math.round(draw.squiggleDetail);
   $('vSvgWidth').textContent = draw.svgWidth;
   $('vSvgTol').textContent = Number(draw.svgTol).toFixed(2);
   $('vFontSize').textContent = draw.fontSize;
@@ -323,12 +317,10 @@ function updateLabels() {
 function applyModeVisibility() {
   const mode = $('imageMode').value;
   const trace = mode === 'trace';
-  const contours = mode === 'contours';
   const squiggle = mode === 'squiggle';
-  $$('.raster-only').forEach((el) => el.classList.toggle('hidden', trace || contours || squiggle));
+  $$('.raster-only').forEach((el) => el.classList.toggle('hidden', trace || squiggle));
   $$('.trace-only').forEach((el) => el.classList.toggle('hidden', !trace));
   $$('.squiggle-only').forEach((el) => el.classList.toggle('hidden', !squiggle));
-  $$('.contour-only').forEach((el) => el.classList.toggle('hidden', !contours));
 }
 
 function regenOn(id, eventName = 'input') {
@@ -344,7 +336,7 @@ function regenOn(id, eventName = 'input') {
 
 function bindDrawControls() {
   [
-    'imgWidth', 'imageFeed', 'threshold', 'contourLevels', 'blur', 'brightness', 'contrast', 'gamma',
+    'imgWidth', 'threshold', 'blur', 'brightness', 'contrast', 'gamma',
     'spacing', 'simplify', 'bridge',
     'squiggleLines', 'squiggleAmount', 'squiggleDetail',
     'imgOffsetX', 'imgOffsetY'
@@ -396,8 +388,6 @@ function syncProfileInputs() {
   setNum('setDrawFeed', profile.feed.draw);
   setNum('setTravelFeed', profile.feed.travel);
   setNum('setJogFeed', profile.feed.jog);
-  $('zOffset').value = Number(profile.pen.zOffset) || 0;
-  $('vZOffset').textContent = Number(profile.pen.zOffset || 0).toFixed(1);
   $('setKeepOn').checked = Boolean(profile.keepMotorsOn);
   $('setSoftLimits').checked = Boolean(profile.softLimits);
   $('setHoming').checked = Boolean(profile.homing);
@@ -418,7 +408,6 @@ function readProfileInputs() {
   profile.accel.y = clamp(numValue('setAccelY', 50), 0.1, 10000);
   profile.pen.up = numValue('setPenUp', 5);
   profile.pen.down = numValue('setPenDown', 0);
-  profile.pen.zOffset = clamp(numValue('zOffset', 0), -10, 10);
   profile.pen.feed = clamp(numValue('setPenFeed', 200), 1, 10000);
   profile.feed.draw = clamp(numValue('setDrawFeed', 250), 1, 100000);
   profile.feed.travel = clamp(numValue('setTravelFeed', 300), 1, 100000);
@@ -465,12 +454,6 @@ function bindProfileControls() {
   $('btnApply').addEventListener('click', applyProfileToMachine);
   $('btnRefresh').addEventListener('click', refreshFromMachine);
   $('btnResetProfile').addEventListener('click', resetProfile);
-
-  $('zOffset').addEventListener('input', () => {
-    readProfileInputs();
-    $('vZOffset').textContent = Number(profile.pen.zOffset).toFixed(1);
-    if (state.paths.length) rebuildCurrent();
-  });
 }
 
 function resetProfile() {
@@ -567,12 +550,6 @@ function clearToolpath(message = 'idle') {
   updateDrawButton();
 }
 
-function currentFeedOverride() {
-  // Image jobs use a slower feed than text/SVG: raster and squiggle paths
-  // contain many short segments, and a 28BYJ loses torque at speed.
-  return state.source === 'image' ? draw.imageFeed : null;
-}
-
 async function generate({ auto = false } = {}) {
   if (state.streaming) return;
   const id = ++state.genId;
@@ -607,12 +584,6 @@ async function generate({ auto = false } = {}) {
       if (draw.imageMode === 'trace') {
         result = traceImage(imageEl, {
           ...opts,
-          simplifyMm: draw.simplify
-        });
-      } else if (draw.imageMode === 'contours') {
-        result = contourImage(imageEl, {
-          ...opts,
-          levels: draw.contourLevels,
           simplifyMm: draw.simplify
         });
       } else if (draw.imageMode === 'squiggle') {
@@ -744,7 +715,7 @@ async function generate({ auto = false } = {}) {
 
   let gcode;
   try {
-    gcode = buildGcode(paths, profile, { feedOverride: currentFeedOverride() });
+    gcode = buildGcode(paths, profile);
   } catch (err) {
     setGenerating(false);
     clearToolpath('error');
@@ -773,7 +744,7 @@ function rebuildCurrent() {
     return;
   }
   try {
-    state.gcode = buildGcode(state.paths, profile, { feedOverride: currentFeedOverride() });
+    state.gcode = buildGcode(state.paths, profile);
     state.stats = state.gcode.stats;
     updateStats(state.stats);
   } catch {
@@ -808,16 +779,13 @@ function updateBounds(issues) {
 
 function updateDrawButton() {
   const ready = state.paths.length > 0 && Boolean(state.gcode) && !state.generating && !state.streaming;
-  const moving = state.machineBusy || ['Run', 'Jog', 'Home'].includes(serial.state);
   const btn = $('btnDraw');
-  btn.disabled = !ready || !serial.connected || moving;
+  btn.disabled = !ready || !serial.connected;
   btn.title = !serial.connected
     ? 'Connect the Nano to draw'
-    : moving ? 'Wait for the current movement to stop'
     : ready ? 'Start drawing' : 'Generate a toolpath first';
 
   $('btnExport').disabled = !state.paths.length || state.streaming;
-  $('btnExportSvg').disabled = !state.paths.length || state.streaming;
   $('btnSimulate').disabled = !state.paths.length || state.streaming;
   $('btnGenerate').disabled = state.streaming;
 }
@@ -925,31 +893,14 @@ function applySketchPreset(auto = false) {
   draw.imageMode = 'squiggle';
   draw.squiggleLines = 50;
   draw.squiggleAmount = 1.2;
-  draw.squiggleDetail = 6;
+  draw.squiggleDetail = 90;
   draw.threshold = 128;
   draw.blur = 1;
   draw.modeAuto = auto;
   $('imageMode').value = 'squiggle';
   $('squiggleLines').value = 50;
   $('squiggleAmount').value = 1.2;
-  $('squiggleDetail').value = 6;
-  $('threshold').value = 128;
-  $('blur').value = 1;
-  saveDrawSettings(draw);
-  applyModeVisibility();
-  updateLabels();
-}
-
-/* Smooth tonal contour lines. Each path is a single text-like stroke, so the
- * motion is the same kind as the text mode. */
-function applyContourPreset(auto = false) {
-  draw.imageMode = 'contours';
-  draw.contourLevels = 4;
-  draw.threshold = 128;
-  draw.blur = 1;
-  draw.modeAuto = auto;
-  $('imageMode').value = 'contours';
-  $('contourLevels').value = 4;
+  $('squiggleDetail').value = 90;
   $('threshold').value = 128;
   $('blur').value = 1;
   saveDrawSettings(draw);
@@ -974,8 +925,8 @@ function prepareImage(image, name) {
 
   if (draw.modeAuto !== false) {
     if (imageIsPhoto) {
-      applyContourPreset(true);
-      toast('Photo detected — using Contours (smooth single-line strokes). Press Sketch or Photo for other styles.', 'warn');
+      applySketchPreset(true);
+      toast('Photo detected — using Sketch (continuous line). Press Photo for a halftone.', 'warn');
     } else {
       draw.imageMode = 'trace';
       draw.modeAuto = true;
@@ -1113,12 +1064,6 @@ function wireFiles() {
     if (imageEl) generate();
   });
 
-  $('btnContourPreset').addEventListener('click', () => {
-    applyContourPreset();
-    toast('Contours preset: smooth tonal lines, like the text strokes.');
-    if (imageEl) generate();
-  });
-
   $('btnCenterImage').addEventListener('click', () => {
     if (!imageEl) {
       toast('Upload an image first.', 'warn');
@@ -1173,7 +1118,7 @@ function openConfirm({ auto = false } = {}) {
     ['Draw length', formatLength(stats?.drawDist || 0)],
     ['Pen lifts', String(stats?.lifts || 0)],
     ['Estimated', fmtTime(stats?.time || 0)],
-    ['Feed', `${state.source === 'image' ? draw.imageFeed : profile.feed.draw} mm/min`]
+    ['Feed', `${profile.feed.draw} mm/min`]
   ];
 
   body.innerHTML = rows
@@ -1222,16 +1167,13 @@ async function startDrawing() {
   }
   if (state.streaming || !state.paths.length || !state.gcode) return;
 
-  // If a connect query or a jog is still active, stop it and wait for Idle.
-  // Starting a job while GRBL is in Jog/Hold returns error:9 and leaves the
-  // pen doing a short repeated wiggle instead of drawing the job.
-  if (state.machineBusy || serial.busy || ['Run', 'Jog', 'Home'].includes(serial.state)) {
-    setProgress(0, 'stopping movement…');
-    try { await serial.jogCancel(); } catch { /* not jogging */ }
-    state.machineBusy = false;
+  // If the connect-time $I query or a jog is still waiting for its "ok",
+  // starting now would collide and the first streamed line would fail.
+  if (serial.busy || ['Run', 'Jog', 'Home'].includes(serial.state)) {
+    setProgress(0, 'waiting for controller…');
     if (!(await waitForIdle(10000))) {
       setProgress(0, 'idle');
-      toast('The controller is still moving. Release the jog button and try again.', 'warn');
+      toast('The controller is busy. Try drawing again in a moment.', 'warn');
       return;
     }
   }
@@ -1260,7 +1202,7 @@ async function startDrawing() {
       return;
     }
     state.paths = next;
-    state.gcode = buildGcode(next, profile, { feedOverride: currentFeedOverride() });
+    state.gcode = buildGcode(next, profile);
     state.stats = state.gcode.stats;
     preview.setData(next, profile);
     updateStats(state.stats);
@@ -1328,7 +1270,6 @@ function setDrawingUI(active) {
   $('btnPause').textContent = 'Pause';
   $('btnSimulate').disabled = active || !state.paths.length;
   $('btnExport').disabled = active || !state.paths.length;
-  $('btnExportSvg').disabled = active || !state.paths.length;
   $('btnGenerate').disabled = active;
   $$('.tab').forEach((tab) => { tab.disabled = active; });
   updateMachineControls();
@@ -1419,37 +1360,6 @@ function toggleSimulation() {
   toast('Simulation only — the motors stay still.');
 }
 
-function exportSvg() {
-  if (!state.paths.length) {
-    toast('Generate a toolpath first.', 'warn');
-    return;
-  }
-  const work = profile.work;
-  const f = (n) => Number(n).toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
-  let d = '';
-  for (const path of state.paths) {
-    const pts = path.points;
-    if (!pts.length) continue;
-    d += `M${f(pts[0].x)} ${f(work.y - pts[0].y)}`;
-    for (let i = 1; i < pts.length; i++) {
-      d += `L${f(pts[i].x)} ${f(work.y - pts[i].y)}`;
-    }
-  }
-  const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${work.x}mm" height="${work.y}mm" viewBox="0 0 ${work.x} ${work.y}">
-<path d="${d}" fill="none" stroke="#000" stroke-width="0.25" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
-`;
-  const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'penplot.svg';
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-  toast('SVG exported. Open it in jscut.org, Inkscape or another CAM tool.');
-}
-
 function exportGcode() {
   if (!state.gcode) {
     toast('Generate a toolpath first.', 'warn');
@@ -1492,13 +1402,11 @@ function updateMachineControls() {
   ['btnZero', 'btnRefresh', 'btnPenUp', 'btnPenDown', 'btnHome', 'btnApply'].forEach((id) => {
     $(id).disabled = !on;
   });
-  $('zOffset').disabled = !on;
   // Unlock must stay available so an alarm can be cleared.
   $('btnUnlock').disabled = !serial.connected || state.streaming;
   $('cmdInput').disabled = !on;
   const send = $('cmdForm').querySelector('button');
   if (send) send.disabled = !on;
-  updateDrawButton();
 }
 
 function setConnecting(on) {
@@ -1827,7 +1735,6 @@ function wireMachine() {
   });
 
   $('btnSimulate').addEventListener('click', toggleSimulation);
-  $('btnExportSvg').addEventListener('click', exportSvg);
   $('btnExport').addEventListener('click', exportGcode);
   $('btnGenerate').addEventListener('click', () => generate());
 }
@@ -1921,13 +1828,12 @@ function wireCalibration() {
       toast('No position report yet. Connect and jog Z first.', 'warn');
       return;
     }
-    const zOff = Number(profile.pen.zOffset) || 0;
-    profile.pen.down = round(z - zOff, 2);
+    profile.pen.down = round(z, 2);
     if (profile.pen.up <= profile.pen.down) profile.pen.up = profile.pen.down + 1;
     saveProfile(profile);
     syncProfileInputs();
     rebuildCurrent();
-    toast(`Pen DOWN captured at Z${z} mm.`);
+    toast(`Pen DOWN captured at Z${profile.pen.down} mm.`);
   });
 
   $('calUp').addEventListener('click', () => {
@@ -1936,13 +1842,12 @@ function wireCalibration() {
       toast('No position report yet. Connect and jog Z first.', 'warn');
       return;
     }
-    const zOff = Number(profile.pen.zOffset) || 0;
-    profile.pen.up = round(z - zOff, 2);
+    profile.pen.up = round(z, 2);
     if (profile.pen.up <= profile.pen.down) profile.pen.down = profile.pen.up - 1;
     saveProfile(profile);
     syncProfileInputs();
     rebuildCurrent();
-    toast(`Pen UP captured at Z${z} mm.`);
+    toast(`Pen UP captured at Z${profile.pen.up} mm.`);
   });
 
   $('calSave').addEventListener('click', () => {
