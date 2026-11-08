@@ -10,9 +10,6 @@ export class Preview {
     this.machine = null;
     this.source = null;       // { image, x, y, w, h } in mm, drawn under the toolpath
     this.travel = [];
-    this.trail = [];          // live machine positions (WPos) for the dotted path
-    this.showTrail = true;
-    this.showTravel = true;
     this.flat = [];
     this.totalLen = 0;
     this.w = 0;
@@ -97,28 +94,7 @@ export class Preview {
   }
 
   setMachine(pos) {
-    if (pos) {
-      const last = this.trail[this.trail.length - 1];
-      if (!last) {
-        this.trail.push({ x: pos.x, y: pos.y });
-      } else {
-        const d = Math.hypot(pos.x - last.x, pos.y - last.y);
-        if (d > 20) {
-          // A large jump means the offset changed (connect/zero); start over.
-          this.trail.length = 0;
-          this.trail.push({ x: pos.x, y: pos.y });
-        } else if (d > 0.1) {
-          this.trail.push({ x: pos.x, y: pos.y });
-          if (this.trail.length > 5000) this.trail.shift();
-        }
-      }
-    }
     this.machine = pos;
-    if (!this._sim) this.render();
-  }
-
-  clearTrail() {
-    this.trail = [];
     if (!this._sim) this.render();
   }
 
@@ -238,7 +214,7 @@ export class Preview {
   }
 
   _drawTravel(ctx) {
-    if (!this.showTravel || !this.travel.length) return;
+    if (!this.travel.length) return;
     ctx.save();
     ctx.strokeStyle = 'rgba(70, 120, 180, 0.28)';
     ctx.lineWidth = 1;
@@ -247,23 +223,6 @@ export class Preview {
     for (const t of this.travel) {
       ctx.moveTo(this.tx(t.x1), this.ty(t.y1));
       ctx.lineTo(this.tx(t.x2), this.ty(t.y2));
-    }
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  _drawTrail(ctx) {
-    if (!this.showTrail || this.trail.length < 2) return;
-    ctx.save();
-    ctx.strokeStyle = 'rgba(239, 125, 42, 0.7)';
-    ctx.lineWidth = 1.1;
-    ctx.setLineDash([1.5, 3.5]);
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    for (let i = 0; i < this.trail.length; i++) {
-      const p = this.trail[i];
-      if (i === 0) ctx.moveTo(this.tx(p.x), this.ty(p.y));
-      else ctx.lineTo(this.tx(p.x), this.ty(p.y));
     }
     ctx.stroke();
     ctx.restore();
@@ -356,7 +315,6 @@ export class Preview {
     this._drawSource(ctx);
     this._drawTravel(ctx);
     this._drawPaths(ctx);
-    this._drawTrail(ctx);
     this._drawMachine(ctx);
     if (!this._sim) this._drawPen(ctx, this.pen);
   }

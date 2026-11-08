@@ -69,11 +69,6 @@ export async function penDown(serial, profile) {
   return serial.sendLine(`G21 G90 G1 Z${F(z)} F${F(rate, 0)}`, 30000);
 }
 
-/* Absolute Z move used by the pen-height slider. */
-export async function penTo(serial, z, feed) {
-  return serial.sendLine(`G21 G90 G1 Z${F(z)} F${F(feed, 0)}`, 30000);
-}
-
 export async function setWorkPosition(serial, axis, value = 0) {
   return serial.sendLine(`G10 L20 P1 ${axis}${F(value)}`);
 }

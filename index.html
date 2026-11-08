@@ -244,8 +244,7 @@
         <canvas id="preview"></canvas>
         <div class="legend">
           <span><i class="ink"></i>draw</span>
-          <label class="legend-check"><input type="checkbox" id="showTravel" checked><i class="trav"></i>travel</label>
-          <label class="legend-check"><input type="checkbox" id="showLivePath" checked><i class="live"></i>live path</label>
+          <span><i class="trav"></i>travel</span>
           <span><i class="mach"></i>machine</span>
         </div>
       </div>
@@ -279,7 +278,6 @@
             <div><span>Y</span><b id="posY">0.00</b><em>mm</em></div>
             <div><span>Z</span><b id="posZ">0.00</b><em>mm</em></div>
           </div>
-          <div class="pos-debug muted tiny" id="posDebug">MPos — · WCO — · WPos —</div>
 
           <div class="jog-grid">
             <button class="jog" data-jog="Y+">Y+</button>
@@ -305,17 +303,7 @@
             <button class="btn tiny" id="btnPenDown">Pen down</button>
             <button class="btn tiny" id="btnHome" title="Requires limit switches">Home</button>
           </div>
-
-          <label class="field z-slider">
-            <span>Z height <b id="vZSlider">0.0</b> mm</span>
-            <input type="range" id="zSlider" min="0" max="15" step="0.1" value="0">
-          </label>
-          <div class="row">
-            <button class="btn tiny" id="btnZDown">Set as DOWN</button>
-            <button class="btn tiny" id="btnZUp">Set as UP</button>
-          </div>
-
-          <p class="hint">Slide Z to touch the paper, then press <b>Set as DOWN</b>. Hold a jog arrow for continuous motion; release to stop.</p>
+          <p class="hint">Hold an arrow to jog continuously; release to stop. A quick tap moves one step.</p>
         </section>
 
         <section class="card">

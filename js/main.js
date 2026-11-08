@@ -61,10 +61,6 @@ let genTimer = null;
 let countdownTimer = null;
 let simResetTimer = null;
 let jogPress = null;
-let zSliderTimer = null;
-let zMoveBusy = false;
-let zMoveAgain = false;
-let zSliderActive = false;
 
 const MAX_CONSOLE_LINES = 400;
 const logEl = $('console');
@@ -548,7 +544,6 @@ function clearToolpath(message = 'idle') {
   state.stats = null;
   state.issues = [];
   preview.setData([], profile);
-  preview.clearTrail();
   updateStats(null);
   updateBounds([]);
   setProgress(0, message);
@@ -1225,7 +1220,6 @@ async function startDrawing() {
 
   state.streaming = true;
   state.paused = false;
-  preview.clearTrail();
   setDrawingUI(true);
   setProgress(0, 'unlocking…');
 
@@ -1482,7 +1476,6 @@ function wireSerial() {
   serial.addEventListener('disconnected', (event) => {
     const reason = typeof event.detail === 'string' ? event.detail : 'port closed';
     logLine(`[disconnected] ${reason}`, 'err');
-    preview.clearTrail();
     if (state.streaming) {
       state.streaming = false;
       state.paused = false;
@@ -1500,15 +1493,6 @@ function wireSerial() {
       $('posX').textContent = pos[0].toFixed(2);
       $('posY').textContent = pos[1].toFixed(2);
       $('posZ').textContent = pos[2].toFixed(2);
-      const fmt = (v) => (v ? v.map((n) => n.toFixed(2)).join(', ') : '—');
-      $('posDebug').textContent = `MPos ${fmt(st.mpos)} · WCO ${fmt(st.wco)} · WPos ${fmt(st.wpos)}`;
-
-      if (!zSliderActive && !zMoveBusy && (st.state === 'Idle' || st.state === 'Hold')) {
-        const s = $('zSlider');
-        const z = Math.min(Number(s.max), Math.max(Number(s.min), pos[2]));
-        s.value = String(z);
-        $('vZSlider').textContent = Number(z).toFixed(1);
-      }
 
       const now = performance.now();
       if (!preview._lastMachine || now - preview._lastMachine > 220) {
@@ -1636,67 +1620,6 @@ async function jog(axis, direction) {
   await withSerial('Jog failed', () => GRBL.jog(serial, axis, delta, feed));
 }
 
-/* ─────────────────────────── Z height slider ─────────────────────────── */
-
-async function applyZSlider() {
-  if (!serial.connected || state.streaming) return;
-  if (zMoveBusy) { zMoveAgain = true; return; }
-  zMoveBusy = true;
-  state.machineBusy = true;
-  updateMachineControls();
-  try {
-    if (!(await waitForIdle(5000))) return;
-    await GRBL.penTo(serial, Number($('zSlider').value), profile.pen.feed);
-  } catch (err) {
-    toast(`Z move failed: ${err.message}`, 'err');
-  } finally {
-    zMoveBusy = false;
-    state.machineBusy = false;
-    updateMachineControls();
-    setTimeout(() => { zSliderActive = false; }, 250);
-    if (zMoveAgain) {
-      zMoveAgain = false;
-      applyZSlider();
-    }
-  }
-}
-
-function wireZSlider() {
-  const slider = $('zSlider');
-  const label = $('vZSlider');
-
-  slider.addEventListener('pointerdown', () => { zSliderActive = true; });
-  slider.addEventListener('pointerup', () => {
-    setTimeout(() => { zSliderActive = false; }, 300);
-  });
-  slider.addEventListener('input', () => {
-    zSliderActive = true;
-    label.textContent = Number(slider.value).toFixed(1);
-    clearTimeout(zSliderTimer);
-    zSliderTimer = setTimeout(applyZSlider, 220);
-  });
-
-  $('btnZDown').addEventListener('click', () => {
-    const z = currentZ() ?? Number(slider.value);
-    profile.pen.down = round(z, 2);
-    if (profile.pen.up <= profile.pen.down) profile.pen.up = profile.pen.down + 1;
-    saveProfile(profile);
-    syncProfileInputs();
-    rebuildCurrent();
-    toast(`Pen DOWN set to Z${profile.pen.down} mm.`);
-  });
-
-  $('btnZUp').addEventListener('click', () => {
-    const z = currentZ() ?? Number(slider.value);
-    profile.pen.up = round(z, 2);
-    if (profile.pen.down >= profile.pen.up) profile.pen.down = profile.pen.up - 1;
-    saveProfile(profile);
-    syncProfileInputs();
-    rebuildCurrent();
-    toast(`Pen UP set to Z${profile.pen.up} mm.`);
-  });
-}
-
 function wireMachine() {
   const JOG_HOLD_MS = 220;
 
@@ -1771,18 +1694,8 @@ function wireMachine() {
   window.addEventListener('pointerup', endJogPress);
   window.addEventListener('blur', endJogPress);
 
-  $('showTravel').addEventListener('change', () => {
-    preview.showTravel = $('showTravel').checked;
-    preview.render();
-  });
-  $('showLivePath').addEventListener('change', () => {
-    preview.showTrail = $('showLivePath').checked;
-    preview.render();
-  });
-
   $('btnZero').addEventListener('click', () => withSerial('Zero failed', async () => {
     await GRBL.zeroAll(serial);
-    preview.clearTrail();
     logLine('[zero] work origin set to the current position', 'ok');
     toast('Zeroed X, Y and Z at the current position.');
   }));
@@ -2017,7 +1930,6 @@ function boot() {
   wireFiles();
   wireSerial();
   wireMachine();
-  wireZSlider();
   wireConsole();
   wireCalibration();
   wireModals();
