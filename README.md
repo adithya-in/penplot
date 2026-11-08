@@ -1,25 +1,397 @@
-# PenPlot — image → G-code → 3-axis pen plotter
+# PenPlot — the world's first all-in-one browser CNC plotter
 
-A complete web app that turns an image, SVG or text into G-code and streams it
-over USB to a GRBL-flashed Arduino Nano driving three 28BYJ-48 steppers (X, Y
-and a pen-lift Z).
+**Image → SVG → G-code → CAM — in one web app. No install. Any device. Any OS.**
 
-**Hosted app: <https://penplot-roan.vercel.app>** — open it in desktop Chrome or
-Edge, connect the Nano and draw. No local server, Python or Node.js is needed
-for the hosted version. There is no backend: the site is static and all
-conversion, preview and serial communication happen in the browser.
+[![Live app](https://img.shields.io/badge/live-penplot--roan.vercel.app-2ea44f)](https://penplot-roan.vercel.app)
+[![Release](https://img.shields.io/badge/release-v1.1-blue)](https://github.com/adithya-in/penplot/releases/tag/v1.1)
+[![License](https://img.shields.io/badge/licence-see%20below-lightgrey)](#firmware-provenance-and-licence)
 
-The firmware and website source live in this folder. Flashing the Nano is a
-one-time local step; after that, the hosted app talks to it with Web Serial over
-HTTPS.
+PenPlot turns a **photo, logo, SVG or text** into a finished pen drawing on a
+GRBL CNC plotter. The entire pipeline — raster-to-vector tracing, vector
+toolpath generation, G-code export and live machine CAM — runs **inside the
+browser**. There is no backend, no account, no cloud conversion and no local
+Python/Node server needed for the hosted app.
 
+![PenPlot workspace](docs/screenshots/01-overview.png)
+
+```text
+photo / logo / SVG / text
+        │
+        ▼
+  stroke extraction            ← image tracing, Bézier flattening, Hershey font
+        │
+        ▼
+  toolpath optimisation        ← clipping, ordering, pen-up travel
+        │
+        ▼
+  G-code + preview             ← live canvas simulation, statistics, SVG export
+        │
+        ▼
+  Web Serial → GRBL → motors   ← jog, zero, pen lift, pause/resume/stop
 ```
-image / SVG / text  →  stroke paths  →  G-code  →  Web Serial  →  GRBL on Nano
+
+To our knowledge, this is the **first CNC plotter project that combines all four
+stages — image → SVG, SVG → G-code, G-code CAM and live machine control — in a
+single browser app that runs on any device or operating system**. The same UI
+works on a Windows laptop, a Mac, a Linux box, a Chromebook, an Android tablet
+or an iPad: you can design, preview and export anywhere. Only the final USB
+streaming step is limited to browsers that expose Web Serial (desktop Chrome and
+Edge), which is a browser API limit, not an app or OS limit.
+
+---
+
+## Contents
+
+1. [Screenshots](#screenshots)
+2. [Feature matrix](#feature-matrix)
+3. [The pipeline in code](#the-pipeline-in-code)
+4. [Compatibility](#compatibility)
+5. [Quick start](#quick-start)
+6. [What you need](#what-you-need)
+7. [Wiring](#wiring)
+8. [Flash the Nano](#flash-the-nano)
+9. [First-run workflow](#first-run-workflow)
+10. [Drawing modes](#drawing-modes)
+11. [Settings and calibration](#settings-and-calibration)
+12. [Machine controls and console](#machine-controls-and-console)
+13. [Troubleshooting](#troubleshooting)
+14. [Safety](#safety)
+15. [Project layout](#project-layout)
+16. [Firmware provenance and licence](#firmware-provenance-and-licence)
+
+---
+
+## Screenshots
+
+Every screenshot below is generated with Playwright from the real app
+(`npm run screenshots`) and committed in [`docs/screenshots`](docs/screenshots).
+
+### 1. The workspace
+
+Three columns: **source controls** on the left, the **live canvas preview** in
+the centre, and **machine/settings/console** on the right. The canvas shows the
+toolpath, the paper, the image underlay and the live crosshair.
+
+![Workspace overview](docs/screenshots/01-overview.png)
+
+### 2. Image → SVG → G-code (Sketch / Squiggle)
+
+Drop a photo and PenPlot traces it into one continuous wavy line per row. Dark
+pixels get a larger amplitude; light areas flatten out. The source image stays
+visible under the toolpath so you can judge the fit before drawing.
+
+![Photo converted to a continuous-line sketch](docs/screenshots/02-image-sketch.png)
+
+### 3. Photo halftone
+
+Press **Photo** for a scan-line + dither halftone: the single pen builds greys
+from black dots and short strokes. This is the photographic mode, at the cost of
+many more pen lifts than Sketch.
+
+![Dithered photo halftone](docs/screenshots/02b-image-halftone.png)
+
+### 4. Image controls
+
+Mode, width, tone, dithering, spacing, simplification and row linking are all
+live: change a slider and the toolpath regenerates in the browser.
+
+![Image conversion controls](docs/screenshots/03-image-controls.png)
+
+### 5. SVG import
+
+SVG paths, shapes, polylines, polygons and lines are imported, transforms and
+Bézier curves are flattened, then the result is scaled to a physical width in
+millimetres. Fills are plotted as outlines.
+
+![SVG imported and previewed](docs/screenshots/04-svg.png)
+
+### 6. Text
+
+A single-stroke Hershey font draws letters in one pass, like a technical pen,
+with height, spacing, alignment and rotation controls.
+
+![Hershey text toolpath](docs/screenshots/05-text.png)
+
+### 7. Simulation and CAM
+
+**Simulate** plays the whole job on the canvas without moving the machine. The
+stats bar shows paths, draw length, pen lifts and estimated time. **Export SVG**
+and **Export .gcode** download the result for any other CAM tool.
+
+![Toolpath simulation](docs/screenshots/06-simulation.png)
+
+### 8. Machine controls
+
+Hold-to-jog arrows, step selection, zero, unlock, pen up/down and the raw GRBL
+console. The orange crosshair tracks the real machine position in work
+coordinates (`WPos`).
+
+![Machine controls](docs/screenshots/07-machine-controls.png)
+
+### 9. Settings and calibration
+
+Paper size, steps/mm, max rate, acceleration, pen heights, feeds, motor hold,
+soft limits, homing and per-axis inversion — persisted in the browser and
+written to GRBL EEPROM with **Apply**.
+
+![Settings and calibration](docs/screenshots/08-settings.png)
+
+### 10. Any screen
+
+The layout reflows for phones and tablets: the canvas first, then source
+controls, then machine controls. Design and export work everywhere; live USB
+drawing needs desktop Chrome/Edge.
+
+![Mobile layout](docs/screenshots/09-mobile.png)
+
+---
+
+## Feature matrix
+
+| Stage | Feature | What it does |
+| --- | --- | --- |
+| **Image** | Outline trace | Threshold + marching-squares contour tracing, blur, auto-contrast, simplification. Best for logos and line art. |
+| | Sketch / Squiggle | One continuous wavy line per row, amplitude driven by tone. Adapted from plotterfun. |
+| | Scan lines | Horizontal raster strokes, optional dither and gap bridging. |
+| | Vertical hatch | The same raster conversion rotated 90°. |
+| | Dots / stipple | Short dot strokes per dark cell for portraits and texture. |
+| | Photo preset | Scan lines + Floyd–Steinberg dither + one-way rows in one click. |
+| | Tone controls | Threshold, auto contrast, brightness, contrast, gamma, invert. |
+| | Dithering | Floyd–Steinberg error diffusion or ordered Bayer 4×4. |
+| | Preview underlay | The source image is drawn behind the toolpath, like LaserGRBL/UGS. |
+| | Fit & offset | Width in mm, **Center** fit, manual X/Y offsets, paper-edge clipping. |
+| **SVG** | Import | Paths, circles, ellipses, rects, polygons, polylines, lines, groups, transforms. |
+| | Flatten | Bézier adaptive flattening with adjustable curve tolerance. |
+| | Scale | Width in mm, offsets, paper clamping. |
+| **Text** | Hershey font | True single-stroke letters, not outlined fonts. |
+| | Layout | Height, letter spacing, line spacing, alignment, rotation ±45°, X/Y offset. |
+| **CAM** | Canvas preview | Paper rectangle, toolpath, image underlay, dashed bounds. |
+| | Simulation | Animated playback of the toolpath without hardware. |
+| | Statistics | Paths, draw length, pen lifts, estimated draw/travel/Z time. |
+| | Export G-code | Full GRBL program as a `.gcode` file. |
+| | Export SVG | Plots the current toolpath as a millimetre-scale SVG for jscut/Inkscape/other CAM. |
+| | Path optimisation | Dedupe, ordering, travel reduction, gap connection, clipping. |
+| **Machine** | Web Serial | Direct browser → USB serial, no driver app or daemon. |
+| | Connect | Port picker, auto-reconnect to a previously allowed port. |
+| | Status | Real-time GRBL status: Idle/Run/Jog/Alarm, WPos, feed, spindle. |
+| | Hold-to-jog | Press and hold an arrow for continuous `$J` movement; release to stop. A quick tap moves one step. |
+| | Steps | 0.1 / 1 / 10 / 50 mm. |
+| | Zero | `G10 L20 P1 X0 Y0 Z0` work-origin zero at the paper corner. |
+| | Pen control | Pen up/down to configured Z heights. |
+| | Pause/Resume | GRBL feed-hold `!` and cycle-start `~`. |
+| | Stop | Abort stream, soft-reset, lift pen. |
+| | Live crosshair | Real machine position in WPos, cached WCO, pinned to the canvas edge when outside. |
+| | Console | Any GRBL command, multi-line replies collected. |
+| | Auto-draw | Optional 5-second countdown after upload when the Nano is connected. |
+| **Settings** | Profile | Paper, steps/mm, max rate, acceleration, pen heights, feeds, hold motors. |
+| | EEPROM | **Apply** writes the profile to GRBL; **↻** reads `$$` back. |
+| | Calibration | Steps/mm wizard and pen-height capture. |
+| | Inversion | `$3` X/Y/Z direction mask, with Y inverted by default for this build. |
+| | Persistence | Settings saved in `localStorage`, so the panel survives reloads offline. |
+| **Platform** | No backend | Static HTML/CSS/JS; all parsing, tracing and streaming is client-side. |
+| | Any OS | Windows, macOS, Linux, ChromeOS, Android, iOS — for design/preview/export. |
+| | Responsive | Desktop three-column layout and mobile stacked layout. |
+| | Offline-capable source | The app is a static site; serve the folder anywhere. |
+
+---
+
+## The pipeline in code
+
+### G-code generation
+
+`buildGcode` is deliberately small and deterministic: every stroke becomes a
+`G0` travel, a pen-down `G1 Z`, a sequence of `G1` XY moves, then a pen-up.
+
+```js
+// js/gcode.js
+lines.push('G21 ; millimetres', 'G90 ; absolute', 'G94 ; mm per minute');
+lines.push(`G0 Z${up} ; pen up`, `G4 P${Math.min(dwell, 1).toFixed(2)}`);
+
+for (const path of paths) {
+  const first = path.points[0];
+  lines.push(`G0 X${f3(first.x)} Y${f3(first.y)}`);
+  lines.push(`G1 Z${down} F${penFeed}`);
+  if (dwell > 0) lines.push(`G4 P${dwell.toFixed(2)}`);
+  let feedSet = false;
+  for (let i = 1; i < path.points.length; i++) {
+    const pt = path.points[i];
+    if (!feedSet) {
+      lines.push(`G1 X${f3(pt.x)} Y${f3(pt.y)} F${drawFeed}`);
+      feedSet = true;
+    } else {
+      lines.push(`G1 X${f3(pt.x)} Y${f3(pt.y)}`);
+    }
+  }
+  lines.push(`G1 Z${up} F${penFeed}`);
+}
+```
+
+A generated program looks like this:
+
+```gcode
+G21 ; millimetres
+G90 ; absolute
+G94 ; mm per minute
+G0 Z5 ; pen up
+G4 P0.20
+G0 X0.000 Y13.281
+G1 Z0 F200
+G4 P0.20
+G1 X1.094 Y15.000 F250
+G1 X2.344 Y16.250
+G1 X2.969 Y17.500
+...
+G1 Z5 F200
+G4 P0.20
+G0 Z5
+M5
+```
+
+### Web Serial streaming
+
+Each line waits for GRBL's `ok` before the next is sent. This line-by-line
+handshake is slower than character-counting streaming, but it is dramatically
+more reliable on a 28BYJ-48 plotter and makes errors point at the exact line.
+
+```js
+// js/serial.js
+async stream(lines, { onProgress, shouldStop } = {}) {
+  this._streaming = true;
+  this._abort = false;
+  const total = lines.length;
+  try {
+    for (let i = 0; i < total; i++) {
+      if (this._abort) throw new Error('Stopped');
+      if (shouldStop && shouldStop()) throw new Error('Stopped');
+      const line = lines[i];
+      if (!line || line.startsWith(';') || line.startsWith('(')) continue;
+      try {
+        await this.sendLine(line, 30000);
+      } catch (err) {
+        const short = line.length > 60 ? `${line.slice(0, 60)}…` : line;
+        throw new Error(`${err.message} (line ${i + 1}: ${short})`);
+      }
+      if (i % 3 === 0) this.writeRaw('?').catch(() => {});
+      if (onProgress && (i % 10 === 0 || i === total - 1)) {
+        onProgress(i + 1, total);
+      }
+    }
+  } finally {
+    this._streaming = false;
+    this._abort = false;
+  }
+}
+```
+
+### Hold-to-jog
+
+A press starts one long relative jog; releasing sends GRBL's jog cancel. A tap
+shorter than 220 ms is treated as a single discrete step instead.
+
+```js
+// js/main.js
+const JOG_HOLD_MS = 220;
+
+async function startContinuousJog(press) {
+  press.active = true;
+  const dir = press.sign === '+' ? 1 : -1;
+  const dist = (press.axis === 'X' ? profile.travel.x : profile.travel.y) * dir;
+  const axisMax = press.axis === 'X' ? profile.maxRate.x : profile.maxRate.y;
+  const feed = Math.max(1, Math.min(profile.feed.jog || 600, axisMax));
+  await serial.sendLine(`$J=G91 ${press.axis}${dist.toFixed(3)} F${feed.toFixed(0)}`, 30000);
+}
+
+function endJogPress() {
+  if (press.active) {
+    serial.jogCancel().catch(() => {}); // GRBL decelerates to a stop
+  } else {
+    jog(press.axis, press.sign);        // quick tap = one step
+  }
+}
+```
+
+### SVG export from the toolpath
+
+The current toolpath is re-emitted as a millimetre-scale SVG, so the same job
+can be opened in jscut, Inkscape, LaserWeb or any other CAM package.
+
+```js
+// js/main.js
+function exportSvg() {
+  const work = profile.work;
+  let d = '';
+  for (const path of state.paths) {
+    const pts = path.points;
+    d += `M${f(pts[0].x)} ${f(work.y - pts[0].y)}`;
+    for (let i = 1; i < pts.length; i++) {
+      d += `L${f(pts[i].x)} ${f(work.y - pts[i].y)}`;
+    }
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg"
+    width="${work.x}mm" height="${work.y}mm"
+    viewBox="0 0 ${work.x} ${work.y}">
+    <path d="${d}" fill="none" stroke="#000" stroke-width="0.25"/>
+  </svg>`;
+  // download as penplot.svg
+}
+```
+
+### Image tracing
+
+Outline mode thresholds the image, traces the mask with marching squares,
+simplifies the polyline and emits closed contours as continuous strokes.
+
+```js
+// js/image.js (shape of the pipeline)
+const { gray } = imageToGray(img, w, h);
+const toned = applyTone(autoLevels(gray), { brightness, contrast, gamma });
+const blurred = boxBlur(toned, w, h, blur);
+const mask = threshold(blurred, threshold, invert);
+const paths = traceMask(despeckle(mask, w, h), w, h, {
+  simplify: simplifyMm / cell,
+  minLength: 3
+});
 ```
 
 ---
 
-## 1. What you need
+## Compatibility
+
+| Capability | Windows | macOS | Linux | ChromeOS | Android | iOS/iPadOS |
+| --- | --- | --- | --- | --- | --- | --- |
+| Design / image import | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| SVG import / text | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Preview / simulation | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Export SVG / G-code | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Live USB drawing (Web Serial) | Chrome/Edge | Chrome/Edge | Chrome/Edge | Chrome/Edge | ❌ | ❌ |
+
+- **Any device and OS** covers the whole design, preview and export workflow.
+- **Live machine control** uses the Web Serial API. Firefox and Safari do not
+  implement it, and mobile browsers do not expose USB serial to web pages. Use
+  desktop Chrome or Edge for the final USB connection.
+- Web Serial also requires a secure context: the HTTPS hosted app, or
+  `http://localhost`. Opening `index.html` as `file://` will not work.
+- The site is a static bundle (HTML + CSS + ES modules), so it can be hosted on
+  Vercel, GitHub Pages, Netlify, a Raspberry Pi or any static server.
+
+---
+
+## Quick start
+
+1. Open **<https://penplot-roan.vercel.app>** in desktop Chrome or Edge.
+2. Flash the Nano once (see [Flash the Nano](#flash-the-nano)).
+3. Click **Connect Nano**, pick the CH340/FT232 port, wait for **Idle**.
+4. Press **Settings → Apply** once to write the machine profile.
+5. Jog to the **bottom-left** corner of the paper, lower Z until the pen just
+   touches, then press **Zero here**.
+6. Load an image, an SVG or text, press **Center**, check the preview, then
+   press **Draw**.
+
+There is **no backend** and no upload: your image never leaves the browser.
+
+---
+
+## What you need
 
 **Hardware**
 
@@ -37,18 +409,20 @@ rectangle and never enables homing or soft limits by default.
 
 **Software**
 
-- Desktop [Chrome](https://www.google.com/chrome/) or Edge (Web Serial).
-  Firefox, Safari and mobile browsers cannot talk to the Nano.
+- Desktop [Chrome](https://www.google.com/chrome/) or Edge for Web Serial.
+  Firefox, Safari and mobile browsers can design and export but cannot talk to
+  the Nano.
 - **For the hosted app:** nothing else.
 - **For flashing:** Windows 10/11 and
   [arduino-cli](https://arduino.github.io/arduino-cli/):
   `winget install --id ArduinoSA.CLI -e`
-- Python 3 is only needed if you run the local copy with `start.bat`.
-- Node.js is **not** required to run the app.
+- Python 3 is only needed for the optional local `start.bat`.
+- Node.js is **not** required to run the app. It is only used to regenerate the
+  README screenshots (`npm run screenshots`).
 
 ---
 
-## 2. Wiring
+## Wiring
 
 The firmware is the **GRBL-28byj-48** fork. It drives the ULN2003 boards
 directly with an 8-state half-step sequence, so the usual step/dir pins are not
@@ -77,7 +451,7 @@ wires unless you are deliberately reversing a direction.
 
 ### Power and ground
 
-```
+```text
   USB ────────────── Arduino Nano ──── D2..D5, A0..A3, D8, D9, D12, D13
                         │  GND                     │
                         └────────────┬─────────────┘
@@ -117,7 +491,7 @@ Settings card shows which bits are currently set.
 
 ---
 
-## 3. Flash the Nano
+## Flash the Nano
 
 1. Plug the Nano into USB. Windows should create a COM port. Most clones need
    the CH340 driver; genuine boards use FT232.
@@ -147,64 +521,14 @@ PuTTY or anything else holding the COM port.
 
 The script tries the old bootloader first and automatically retries with the new
 one. A board that reports `not in sync: resp=0xa3` on the first attempt is a new
-bootloader Nano; the second attempt succeeds (this was the case for the test
-board on COM15).
+bootloader Nano; the second attempt succeeds.
 
 After flashing, open `flash.ps1 -Monitor` and press Enter. You should see a
 `Grbl 1.1f [...]` banner and an `ok` after `$$`.
 
 ---
 
-## 4. Open the website
-
-### Hosted (recommended)
-
-Open **<https://penplot-roan.vercel.app>** in desktop Chrome or Edge.
-
-That is the full app, served over HTTPS, so Web Serial works directly against
-the Nano. No Python server, no `start.bat`, and no build step. The Vercel
-project lives under the *adithya's projects* account:
-
-<https://vercel.com/adithyas-projects-82c8ada6/penplot>
-
-Click **Connect Nano** and pick the Nano/CH340 port. On later visits the app
-remembers the port you allowed and reconnects automatically; Chrome may ask you
-to confirm. If the browser has no Web Serial API, the page shows a warning
-banner instead of the Connect button doing anything.
-
-### Local copy (optional)
-
-Double-click **`start.bat`**. It starts a static server on
-`http://127.0.0.1:8080` in a separate window and opens the page in Chrome or
-Edge. Keep the server window open while you draw.
-
-If Python is unavailable, serve the folder with any static server on port 8080,
-for example:
-
-```powershell
-npx serve -l 8080 .
-```
-
-Web Serial needs a secure context: **HTTPS** (the hosted app) or
-**`http://localhost`**. Opening `index.html` as a `file://` URL will not work.
-
-### Redeploy after changing the site
-
-The folder is linked to the Vercel project (`penplot`). After editing
-`index.html`, `css/` or `js/`, run:
-
-```powershell
-npx vercel deploy --prod
-```
-
-The first deployment from this machine was made from the CLI, so it requires a
-one-time `npx vercel login`. The current production URL is
-**<https://penplot-roan.vercel.app>**. `firmware/`, `.build/`, the flashing
-scripts and the README are excluded by `.vercelignore` and are not uploaded.
-
----
-
-## 5. First-run workflow
+## First-run workflow
 
 1. **Connect Nano** and confirm the status dot turns green and the machine pill
    shows **Idle**.
@@ -213,7 +537,8 @@ scripts and the README are excluded by `.vercelignore` and are not uploaded.
    calibrated steps/mm, to the controller's EEPROM. Keep **Invert Y** ticked —
    the Y motor on this plotter is mounted in reverse.
 3. Jog X/Y with the arrows until the pen is over the **bottom-left corner** of
-   the drawing area. Use the 10 mm step first, then 1 mm.
+   the drawing area. Use the 10 mm step first, then 1 mm. Hold an arrow for
+   continuous movement; release to stop.
 4. Jog Z down until the pen **just touches** the paper.
 5. Press **Zero here**. This sets the work origin to `X0 Y0 Z0` at the paper
    corner and the touch point. The X/Y/Z boxes now show **work coordinates**,
@@ -247,9 +572,10 @@ controller's internal machine position.
 
 ---
 
-## 6. Drawing modes
+## Drawing modes
 
-### Image — **Outline**
+### Image — Outline
+
 Best for logos, line art and high-contrast drawings. The image is thresholded,
 optionally blurred, traced with marching squares, simplified and optimised.
 `Simplify` controls how aggressively the outline is reduced (larger = fewer
@@ -272,14 +598,15 @@ A single-colour pen cannot reproduce continuous grey. Photos are drawn as a
 **halftone**: dithered black dots/segments that the eye blends into shades.
 Expect an artistic approximation, not a photocopy.
 
-- **Threshold** now works in the intuitive direction: higher = more ink.
+- **Threshold** works in the intuitive direction: higher = more ink.
 - **Auto contrast** stretches a washed-out photo to the full black-to-white
   range. Keep it on for phone photos; turn it off if the original contrast is
   intentional.
 - **Brightness / Contrast / Gamma** apply before thresholding/dithering, the
   same order LaserWeb4 and LaserGRBL use. Gamma is the most useful control for
   lifting or deepening midtones.
-- **Dither** converts greys into a fine black/white pattern; leave it on for photos.
+- **Dither** converts greys into a fine black/white pattern; leave it on for
+  photos.
 - **Ordered** uses a regular Bayer 4×4 pattern instead of error diffusion. Try
   it when Floyd–Steinberg looks too noisy.
 - In solid areas, adjacent raster runs that overlap are joined into one
@@ -295,7 +622,8 @@ Expect an artistic approximation, not a photocopy.
 - For the most detail, use **Dots** with `Dither` and `Line spacing` 0.6–0.8 mm.
   It is slow because the pen lifts between dots.
 
-### Image — **Squiggle (Sketch)**
+### Image — Sketch (Squiggle)
+
 Adapted from [mitxela/plotterfun](https://github.com/mitxela/plotterfun) (MIT).
 It draws **one continuous wavy line per row**. Dark pixels get a larger wave
 amplitude and a faster oscillation; light areas flatten out or are skipped.
@@ -309,7 +637,8 @@ slow 28BYJ plotter than hundreds of dithered segments.
 Press **Sketch** to apply the preset. It is an artistic line drawing, not a
 photocopy; use **Photo** (halftone) for a more photographic result.
 
-### Image — **Scan lines**
+### Image — Scan lines
+
 Converts the image to horizontal strokes, one per raster line. Best for photos
 and solid shapes. Adjust `Line spacing` (smaller = more detail and much longer
 draw time), `Threshold`, `Dither` for photos, and `Bridge gaps` to join small
@@ -318,12 +647,14 @@ breaks in a scan line.
 If the result is a black blob, the threshold is too high or the image has a dark
 background — tick **Invert**. If it is all white, lower the threshold.
 
-### Image — **Vertical hatch**
+### Image — Vertical hatch
+
 The same raster conversion rotated 90°. Use it when horizontal lines fight with
 the image content or when you want a cross-hatched look by plotting the same
 image twice with different spacing.
 
-### Image — **Dots (stipple)**
+### Image — Dots (stipple)
+
 Produces short dot strokes per dark cell. Works well for portraits and textures;
 it produces many pen lifts, so it is slower.
 
@@ -331,6 +662,7 @@ it produces many pen lifts, so it is slower.
 millimetres; `Offset X/Y` positions it on the page.
 
 ### SVG
+
 Imports SVG paths, shapes, polylines, polygons and lines, flattens Bézier
 curves, applies element transforms and scales the drawing to the requested
 width in millimetres. Filled shapes are plotted as **outlines** — for a
@@ -339,12 +671,14 @@ single-stroke look, export the SVG with strokes only and no fills.
 SVGs larger than the paper are scaled to the requested width and clamped.
 
 ### Text
+
 Uses a single-stroke Hershey font, so letters are drawn in one pass like a
 technical pen. Controls: letter height (mm), letter spacing, line spacing,
 alignment, rotation ±45°, and page offsets. Text is kept in reading order rather
 than travel-optimised.
 
 ### Draw-after-upload
+
 The **Draw after upload** checkbox is on by default. When an image is loaded,
 the app generates the toolpath and, if the Nano is connected and the path is
 inside the paper, opens the confirmation dialog with a **5-second countdown**.
@@ -353,7 +687,7 @@ the path needed clamping.
 
 ---
 
-## 7. Settings and calibration
+## Settings and calibration
 
 The right-hand **Settings** card holds the machine profile:
 
@@ -396,7 +730,7 @@ The most accurate method uses a long move in the Console. The wizard uses a
 3. Measure the real distance travelled.
 4. Calculate:
 
-   ```
+   ```text
    new steps/mm = old steps/mm × 100 ÷ measured
    ```
 
@@ -404,7 +738,7 @@ The most accurate method uses a long move in the Console. The wizard uses a
 5. Enter the result in **Steps/mm X**, press **Apply**, and repeat for Y with
    `G1 Y100 F300`.
 6. For Z, command `G1 Z10 F100`, measure the lift, and use the same formula
-   with `Steps/mm Z`.
+   with **Steps/mm Z**.
 
 The wizard does the same calculation for a 10 mm move: jog exactly 10 mm,
 measure it, enter the measured value, and press **Apply X/Y**.
@@ -431,7 +765,7 @@ Z** and press **Apply**. If the pen presses too hard or misses lines, adjust
 
 ### Suggested conservative first run
 
-- Draw feed **100-150 mm/min**
+- Draw feed **100–150 mm/min**
 - Max rate **600 mm/min** (jog/travel cap; lower it if a jog skips)
 - Accel **30–50 mm/s²**
 - Image width **50–80 mm**
@@ -442,7 +776,7 @@ buzz, lower the feed and acceleration.
 
 ---
 
-## 8. Machine controls and console
+## Machine controls and console
 
 - **Jog arrows** move X/Y by the selected step (0.1, 1, 10 or 50 mm) at
   **Jog feed** (600 mm/min by default). **Hold** an arrow for continuous
@@ -455,13 +789,15 @@ buzz, lower the feed and acceleration.
 - **Home** is intentionally blocked unless homing is enabled; there are no limit
   switches.
 - **Simulate** plays the toolpath on the preview without moving the machine.
+- **Export SVG** downloads the toolpath as a millimetre-scale SVG.
 - **Export .gcode** downloads the generated program.
 - **Stop** aborts the stream, soft-resets the controller and lifts the pen.
 - **Pause / Resume** sends GRBL feed-hold (`!`) and cycle-start (`~`).
 - The orange crosshair in the preview is the **live machine position** in work
-  coordinates (`WPos`). It updates while jogging and while drawing. If the
-  machine is outside the paper, the marker is pinned to the edge with an arrow
-  and shows its real coordinates.
+  coordinates (`WPos`). It updates while jogging and while drawing. It uses a
+  cached WCO offset, so it stays on the drawing instead of jumping to machine
+  coordinates. If the machine is outside the paper, the marker is pinned to the
+  edge with an arrow and shows its real coordinates.
 
 The **Console** accepts any GRBL command: `?`, `$$`, `$#`, `$G`, `$X`, `$H`,
 `G0 X10`, etc. Multi-line replies (`$$`, `$#`, `$I`, `$G`) are collected and
@@ -501,7 +837,7 @@ Press **Unlock** first; then fix the setting that re-triggers it.
 
 ---
 
-## 9. Troubleshooting
+## Troubleshooting
 
 | Symptom | Fix |
 | --- | --- |
@@ -509,23 +845,23 @@ Press **Unlock** first; then fix the setting that re-triggers it.
 | No COM port in Windows | Try another USB **data** cable/port; install the CH340 driver for clones; check Device Manager for a yellow warning. |
 | Upload fails | Close the Arduino IDE/serial monitor. Try `.\flash.ps1 -NewBootloader` or the other bootloader setting. Some clones need a manual reset at "Uploading". |
 | GRBL banner appears but motors do not move | Press **Settings → Apply** to write steps/mm and rates. Check the common ground and the external 5 V supply. |
-| **Draw** does nothing or stops immediately | Reload the page after flashing (Ctrl+Shift+R) and reconnect. The app is now built so this cannot collide with the connect-time `$I` query — wait for the green **Idle** pill, then press Draw. If it still stops, the Console now shows the failing G-code line and error. |
+| **Draw** does nothing or stops immediately | Reload the page after flashing (Ctrl+Shift+R) and reconnect. Wait for the green **Idle** pill, then press Draw. If it still stops, the Console shows the failing G-code line and error. |
 | Browser says Connected but the board ignores everything | After a flash the COM port was reopened by avrdude. Click **Disconnect**, then **Connect Nano** again, or reload the page. |
 | `error:9` / alarm on connect | The controller is in an alarm state. Press **Unlock** (`$X`). Then untick **Soft limits** and **Homing** and press **Apply**; homing/soft limits must stay off on this plotter. |
 | ALARM comes back after Unlock | Send `$$` and confirm `$20=0`, `$21=0`, `$22=0`. Also check that the move is inside 0–150 mm X/Y and 0–15 mm Z. `Pn:PXYZ` alone is not an alarm. |
-| Motors buzz but do not turn | Coil order or a loose ULN2003 connector. Verify X D2–D5, Y A0–A3, Z D8,D9,D12,D13. Reduce feed/accel. |
+| Motors buzz but do not turn | Coil order or a loose ULN2003 connector. Verify X D2–D5, Y A0–A3, Z D8, D9, D12, D13. Reduce feed/accel. |
 | Axis moves the wrong direction | Tick the axis under **Settings → Invert X/Y/Z** and press **Apply** (`$3=1` X, `2` Y, `4` Z), or flip the motor connector. |
 | Drawing is mirrored / upside down | The machine origin is the **bottom-left** corner. Zero there. Y is inverted by default (`$3=2`) for this plotter — do not untick **Invert Y** unless your Y motor is mounted the other way. |
 | Pen drags on travel moves | Increase `Pen up Z`, verify Z direction, and check that the pen holder is not binding. |
 | Skipped steps / shifted drawing | Lower draw feed and acceleration; check belt tension, pulley set screws and motor supply current. A 28BYJ-48 has very little torque. |
 | Disconnects mid-drawing | Use a shorter/quality USB cable, add the 100 µF capacitor, and keep the motor supply wiring away from the USB cable. |
 | Nothing fits on the paper | Check `Paper X/Y`, image offsets and width. The warning banner tells you which axis is outside; the app clamps automatically. |
-| Image trace looks like random lines or almost nothing | Use **Scan lines** or **Dots** for a photo; **Outline** is only for logos and line art. The preview now shows the source image behind the paths so you can check the fit. |
+| Image trace looks like random lines or almost nothing | Use **Scan lines** or **Dots** for a photo; **Outline** is only for logos and line art. The preview shows the source image behind the paths so you can check the fit. |
 | Photo comes out as black/white stripes or a blob | Press **Photo** (Scan + Dither, 0.8 mm, one-way). Lower **Threshold** or tick **Invert** if the background is dark. A single pen cannot make continuous grey — dithered halftone is the closest result. |
 | Photo looks like a mesh or scribble | Press **Photo** for the halftone version, or reduce **Lines**, **Wave amount** and **Detail** in **Sketch** mode. |
 | Rows are shifted or the image looks torn | Turn on **One-way scan**, lower draw feed/accel, and check belt tension and pulley set screws. 28BYJ gearboxes have backlash; serpentine rows exaggerate it. |
 | Image is too coarse / missing detail | Use a larger **Width**, `Line spacing` 0.6–0.8 mm, and **Dots** + **Dither**. Use a finer pen. |
-| Image extends beyond the paper | The app now clips the toolpath at the edge instead of dragging it along the border. Reduce **Width** or press **Center**. |
+| Image extends beyond the paper | The app clips the toolpath at the edge instead of dragging it along the border. Reduce **Width** or press **Center**. |
 | Image is not centred on the paper | Press **Center** in the Image tab. It fits the image inside the paper and sets both offsets. |
 | Text appears upside down or off the page | Text uses a top-left origin; increase `Offset Y (top)` and check rotation. |
 | Auto-draw starts before I am ready | Untick **Draw after upload**, or press **Cancel** during the 5-second countdown. |
@@ -535,7 +871,7 @@ back in, reconnect, then **Unlock**.
 
 ---
 
-## 10. Safety
+## Safety
 
 - Three 28BYJ-48 motors plus three ULN2003 boards get warm. Keep them ventilated
   and do not leave the machine powered unattended with `Hold motors` on.
@@ -551,12 +887,12 @@ back in, reconnect, then **Unlock**.
 
 ---
 
-## 11. Project layout
+## Project layout
 
-```
+```text
 index.html                 app shell and UI
-css/styles.css             styling
-js/main.js                 UI state machine and workflow
+css/styles.css             styling and responsive layout
+js/main.js                 UI state machine, workflow, jog, export
 js/serial.js               Web Serial transport + ok-handshake streaming
 js/grbl.js                 GRBL commands (settings, jog, pen, zero, unlock)
 js/settings.js             machine profile + localStorage persistence
@@ -567,21 +903,44 @@ js/font.js + js/hershey.js single-stroke Hershey text
 js/pathopt.js              path ordering / travel optimisation
 js/gcode.js                bounds checking, G-code generation, statistics
 js/preview.js              canvas preview and simulation
+docs/screenshots/          README screenshots, generated by Playwright
+scripts/screenshots.mjs    Playwright screenshot generator
+package.json               dev scripts (screenshots, local serve)
 firmware/lib/grbl/         vendored GRBL 28BYJ-48 firmware source
 firmware/sketch/           Arduino sketch used to build/upload GRBL
 firmware/COPYING           GPLv3 licence for the firmware
 flash.ps1 / flash.bat      compile + upload the firmware
 start.bat                  local static server + browser launcher
 vercel.json                static hosting config for Vercel
-.vercelignore              keeps firmware/build/flash files out of the deploy
+.vercelignore              keeps firmware/build/docs/tooling out of the deploy
 ```
 
-The public site is <https://penplot-roan.vercel.app>.
-Generated build output goes to `.build/` and is git-ignored.
+### Develop and screenshot locally
+
+```bash
+npm install          # installs Playwright (dev only)
+npm run serve        # static server on http://127.0.0.1:8099
+npm run screenshots  # writes docs/screenshots/*.png
+```
+
+The screenshot script uses the system Chrome at
+`C:\Program Files\Google\Chrome\Application\chrome.exe` by default; set
+`CHROME_PATH` to use another Chrome/Chromium binary. It does not need a
+Playwright browser download.
+
+### Redeploy after changing the site
+
+```powershell
+npx vercel deploy --prod
+```
+
+The Vercel project is **penplot** under *adithya's projects*. `firmware/`,
+`.build/`, the flashing scripts, `docs/`, `scripts/`, the README and
+`package*.json` are excluded by `.vercelignore` and are not uploaded.
 
 ---
 
-## 12. Firmware provenance and licence
+## Firmware provenance and licence
 
 The firmware is **GRBL 1.1f**, modified for 28BYJ-48 unipolar steppers by
 [TGit-Tech/GRBL-28byj-48](https://github.com/TGit-Tech/GRBL-28byj-48), vendored
@@ -596,7 +955,7 @@ The original plotter build this project was based on:
 
 The Hershey font data is public domain.
 
-The **Squiggle** and **Auto contrast** image algorithms are adapted from
+The **Sketch** and **Auto contrast** image algorithms are adapted from
 [mitxela/plotterfun](https://github.com/mitxela/plotterfun), which is MIT
 licensed. The raster filter order (brightness/contrast/gamma) follows
 [LaserWeb4](https://github.com/LaserWeb/LaserWeb4), and the run-linking fill

@@ -1,0 +1,14 @@
+{
+  "name": "penplot",
+  "version": "1.1.0",
+  "private": true,
+  "description": "All-in-one browser CNC pen plotter: image/SVG/text to G-code to CAM",
+  "type": "module",
+  "scripts": {
+    "screenshots": "node scripts/screenshots.mjs",
+    "serve": "python -m http.server 8099 --bind 127.0.0.1"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.0"
+  }
+}

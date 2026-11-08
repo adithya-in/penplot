@@ -1,5 +1,6 @@
-# Only the website itself is deployed. The firmware, build output and local
-# flashing/server scripts stay out of the Vercel upload.
+# Only the website itself is deployed. The firmware, build output, local
+# flashing/server scripts, docs and screenshot tooling stay out of the Vercel
+# upload.
 .build/
 firmware/
 flash.ps1
@@ -10,3 +11,7 @@ README.md
 .vercel/
 .env*
 node_modules/
+docs/
+scripts/
+package.json
+package-lock.json

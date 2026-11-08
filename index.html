@@ -256,6 +256,7 @@
         </div>
         <div class="actions">
           <button class="btn ghost" id="btnSimulate">Simulate</button>
+          <button class="btn ghost" id="btnExportSvg">Export SVG</button>
           <button class="btn ghost" id="btnExport">Export .gcode</button>
           <button class="btn danger hidden" id="btnStop">Stop</button>
           <button class="btn warn hidden" id="btnPause">Pause</button>
@@ -381,6 +382,9 @@
         </ol>
         <div class="callout warn">
           <b>Before the first run:</b> test with the pen lifted and your hand on the power switch. The stock machine has no limit switches, so the app clamps paths to the paper size instead.
+        </div>
+        <div class="callout">
+          <b>Runs anywhere:</b> image, SVG, text, preview, <b>Export SVG</b> and <b>Export .gcode</b> work on any modern browser and OS, including phones and tablets. Live USB drawing uses Web Serial, so connect the Nano from desktop Chrome or Edge.
         </div>
         <div class="callout">
           GRBL settings can be changed live from the Settings card. <b>Apply</b> writes them to EEPROM. <code>$$</code> in the console shows the current values.

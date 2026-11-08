@@ -472,9 +472,10 @@ input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px;
   body { overflow: auto; }
   .app { grid-template-columns: 1fr; grid-auto-rows: auto; }
   .panel, .stage { min-height: unset; }
-  .canvas-wrap { height: 58vh; }
+  .canvas-wrap { flex: 1; height: auto; }
   .scroll { overflow: visible; }
-  .stage { order: -1; }
+  .stage { order: -1; height: 70vh; }
+  .stage-foot, .actions { flex-wrap: wrap; }
   .left { order: 0; }
   .right { order: 1; }
   .topbar { flex-wrap: wrap; }
