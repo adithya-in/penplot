@@ -201,15 +201,18 @@ export class Preview {
       ctx.strokeStyle = '#16181c';
       ctx.lineWidth = Math.max(1, Math.min(2.2, this.scale * 0.22));
     }
+    // Batch every segment into one path. Stroking each segment separately is
+    // very slow for a raster/squiggle toolpath (thousands of strokes per
+    // frame) and can starve the serial read loop while a job is streaming.
     let drawn = 0;
+    ctx.beginPath();
     for (const seg of this.flat) {
       if (drawn >= limit) break;
-      ctx.beginPath();
       ctx.moveTo(this.tx(seg.x1), this.ty(seg.y1));
       ctx.lineTo(this.tx(seg.x2), this.ty(seg.y2));
-      ctx.stroke();
       drawn += seg.len;
     }
+    ctx.stroke();
     ctx.restore();
   }
 

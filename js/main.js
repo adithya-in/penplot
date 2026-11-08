@@ -216,6 +216,7 @@ function clipPaths(paths, work) {
 function syncDrawInputs() {
   $('imageMode').value = draw.imageMode || 'trace';
   $('imgWidth').value = draw.imgWidth;
+  $('imageFeed').value = draw.imageFeed;
   $('threshold').value = draw.threshold;
   $('blur').value = draw.blur;
   $('brightness').value = draw.brightness;
@@ -255,6 +256,7 @@ function syncDrawInputs() {
 function readDrawInputs() {
   draw.imageMode = $('imageMode').value;
   draw.imgWidth = clamp(numValue('imgWidth', 100), 10, profile.work.x);
+  draw.imageFeed = clamp(numValue('imageFeed', 150), 10, 100000);
   draw.threshold = clamp(numValue('threshold', 128), 0, 255);
   draw.blur = clamp(numValue('blur', 1), 0, 4);
   draw.brightness = clamp(numValue('brightness', 0), -100, 100);
@@ -295,6 +297,7 @@ function readDrawInputs() {
 
 function updateLabels() {
   $('vImgWidth').textContent = draw.imgWidth;
+  $('vImageFeed').textContent = draw.imageFeed;
   $('vThreshold').textContent = draw.threshold;
   $('vBlur').textContent = draw.blur;
   $('vBrightness').textContent = draw.brightness;
@@ -336,7 +339,7 @@ function regenOn(id, eventName = 'input') {
 
 function bindDrawControls() {
   [
-    'imgWidth', 'threshold', 'blur', 'brightness', 'contrast', 'gamma',
+    'imgWidth', 'imageFeed', 'threshold', 'blur', 'brightness', 'contrast', 'gamma',
     'spacing', 'simplify', 'bridge',
     'squiggleLines', 'squiggleAmount', 'squiggleDetail',
     'imgOffsetX', 'imgOffsetY'
@@ -550,6 +553,12 @@ function clearToolpath(message = 'idle') {
   updateDrawButton();
 }
 
+function currentFeedOverride() {
+  // Image jobs use a slower feed than text/SVG: raster and squiggle paths
+  // contain many short segments, and a 28BYJ loses torque at speed.
+  return state.source === 'image' ? draw.imageFeed : null;
+}
+
 async function generate({ auto = false } = {}) {
   if (state.streaming) return;
   const id = ++state.genId;
@@ -715,7 +724,7 @@ async function generate({ auto = false } = {}) {
 
   let gcode;
   try {
-    gcode = buildGcode(paths, profile);
+    gcode = buildGcode(paths, profile, { feedOverride: currentFeedOverride() });
   } catch (err) {
     setGenerating(false);
     clearToolpath('error');
@@ -744,7 +753,7 @@ function rebuildCurrent() {
     return;
   }
   try {
-    state.gcode = buildGcode(state.paths, profile);
+    state.gcode = buildGcode(state.paths, profile, { feedOverride: currentFeedOverride() });
     state.stats = state.gcode.stats;
     updateStats(state.stats);
   } catch {
@@ -1118,7 +1127,7 @@ function openConfirm({ auto = false } = {}) {
     ['Draw length', formatLength(stats?.drawDist || 0)],
     ['Pen lifts', String(stats?.lifts || 0)],
     ['Estimated', fmtTime(stats?.time || 0)],
-    ['Feed', `${profile.feed.draw} mm/min`]
+    ['Feed', `${state.source === 'image' ? draw.imageFeed : profile.feed.draw} mm/min`]
   ];
 
   body.innerHTML = rows
@@ -1202,7 +1211,7 @@ async function startDrawing() {
       return;
     }
     state.paths = next;
-    state.gcode = buildGcode(next, profile);
+    state.gcode = buildGcode(next, profile, { feedOverride: currentFeedOverride() });
     state.stats = state.gcode.stats;
     preview.setData(next, profile);
     updateStats(state.stats);

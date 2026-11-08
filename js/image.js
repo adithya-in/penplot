@@ -469,6 +469,7 @@ export function squiggleImage(img, opts) {
     brightness = 0,
     contrast = 0,
     gamma = 1,
+    sampling = 2,
     maxPixels = 640
   } = opts;
 
@@ -485,6 +486,7 @@ export function squiggleImage(img, opts) {
   const yStep = Math.max(1, Math.round(h / lineCount));
   const amp = Math.max(0.1, amount);
   const freq = Math.max(5, detail);
+  const stepX = Math.max(1, Math.round(sampling));
   // Keep the wave inside its row band. Plotterfun's original amplitude is tied
   // to the line count, which overlaps rows on small images and turns the plot
   // into a solid scribble.
@@ -495,7 +497,7 @@ export function squiggleImage(img, opts) {
   for (let y = 0; y < h; y += yStep) {
     let a = 0;
     let pts = [];
-    for (let x = 0; x < w; x++) {
+    for (let x = 0; x < w; x += stepX) {
       let grayV = blurred[y * w + x];
       if (invert) grayV = 255 - grayV;
       // threshold 128 = neutral; higher threshold = darker drawing.

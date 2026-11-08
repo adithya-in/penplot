@@ -270,7 +270,9 @@ choosing a mode stops the automatic switching.
 
 A single-colour pen cannot reproduce continuous grey. Photos are drawn as a
 **halftone**: dithered black dots/segments that the eye blends into shades.
-Expect an artistic approximation, not a photocopy.
+Expect an artistic approximation, not a photocopy. Image G-code uses the
+**Image feed** (150 mm/min by default), not the text Draw feed, because the
+many short raster/squiggle segments need a slower, more reliable speed.
 
 - **Threshold** now works in the intuitive direction: higher = more ink.
 - **Auto contrast** stretches a washed-out photo to the full black-to-white
@@ -365,7 +367,8 @@ The right-hand **Settings** card holds the machine profile:
 | Accel X / Y | Acceleration, mm/s² | 50 / 50 |
 | Pen up Z / Pen down Z | Z heights for pen lift | 5 / 0 |
 | Pen feed | Z move speed, mm/min | 200 |
-| Draw feed | XY speed while drawing | 250 |
+| Draw feed | XY speed while drawing text/SVG | 250 |
+| Image feed | XY speed for image G-code | 150 |
 | Travel feed | XY speed while moving with pen up | 300 |
 | Jog feed | XY speed for the jog arrows (capped by Max rate) | 600 |
 | Hold motors | Keep coils energised when idle | on |

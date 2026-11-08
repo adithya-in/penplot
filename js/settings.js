@@ -44,6 +44,7 @@ export const DRAW_DEFAULTS = {
   simplify: 0.2,        // mm
   bridge: 0,            // merge gaps up to N cells
   oneWay: false,        // raster rows always left-to-right (no serpentine)
+  imageFeed: 150,       // mm/min for image G-code (text/SVG keep Draw feed)
   squiggleLines: 50,    // rows for the continuous squiggle mode
   squiggleAmount: 1.2,  // wave amplitude
   squiggleDetail: 90,   // wave frequency

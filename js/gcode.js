@@ -63,13 +63,16 @@ export function pathStats(paths, profile) {
   };
 }
 
-export function buildGcode(paths, profile, { returnHome = false } = {}) {
+export function buildGcode(paths, profile, { returnHome = false, feedOverride = null } = {}) {
   const lines = [];
-  const stats = pathStats(paths, profile);
+  const statsProfile = feedOverride
+    ? { ...profile, feed: { ...profile.feed, draw: feedOverride } }
+    : profile;
+  const stats = pathStats(paths, statsProfile);
   const up = f3(profile.pen.up);
   const down = f3(profile.pen.down);
   const penFeed = Math.max(1, Math.round(profile.pen.feed));
-  const drawFeed = Math.max(1, Math.round(profile.feed.draw));
+  const drawFeed = Math.max(1, Math.round(feedOverride ?? profile.feed.draw));
   const dwell = Math.max(0, profile.pen.dwell);
 
   lines.push('G21 ; millimetres', 'G90 ; absolute', 'G94 ; mm per minute');
