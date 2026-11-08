@@ -4,7 +4,7 @@
 
 const PROFILE_KEY = 'plotter.profile.v1';
 const PROFILE_REV_KEY = 'plotter.profile.rev';
-const PROFILE_REV = 2;
+const PROFILE_REV = 3;
 const DRAW_KEY = 'plotter.draw.v1';
 const PORT_KEY = 'plotter.port.v1';
 
@@ -12,11 +12,11 @@ export const DEFAULT_PROFILE = {
   name: 'Mini CNC Plotter (28BYJ-48)',
   work: { x: 150, y: 150 },        // usable paper area, mm
   steps: { x: 51.2, y: 51.2, z: 100 }, // steps/mm (calibrate!)
-  maxRate: { x: 300, y: 300, z: 200 }, // mm/min
+  maxRate: { x: 600, y: 600, z: 200 }, // mm/min (jog/travel cap)
   accel: { x: 50, y: 50, z: 100 },     // mm/s^2
   travel: { x: 150, y: 150, z: 15 },   // soft-limit travel, mm
   pen: { up: 5, down: 0, feed: 200, dwell: 0.2 },
-  feed: { draw: 250, travel: 300 },
+  feed: { draw: 250, travel: 300, jog: 600 },
   softLimits: false,
   homing: false,
   // $3 direction mask: bit 0 = X, bit 1 = Y, bit 2 = Z. The Y motor on this
@@ -106,13 +106,21 @@ export function loadProfile() {
   // saves wrote invertMask 0 even though the user never chose it, so migrate
   // that stale value once. A deliberate X/Z inversion is kept.
   const rev = Number(read(PROFILE_REV_KEY)) || 0;
-  if (rev < PROFILE_REV) {
+  if (rev < 2) {
     if (!stored || stored.invertMask === undefined || stored.invertMask === 0) {
       profile.invertMask = DEFAULT_PROFILE.invertMask;
       write(PROFILE_KEY, profile);
     }
-    write(PROFILE_REV_KEY, PROFILE_REV);
   }
+  // Revision 3: faster jog. The old default capped X/Y at 300 mm/min, which
+  // also capped every jog. Raise the cap once and add a dedicated jog feed.
+  if (rev < 3) {
+    if (!stored || !stored.maxRate || !(stored.maxRate.x > 300)) profile.maxRate.x = 600;
+    if (!stored || !stored.maxRate || !(stored.maxRate.y > 300)) profile.maxRate.y = 600;
+    if (!stored || !stored.feed || stored.feed.jog === undefined) profile.feed.jog = 600;
+    write(PROFILE_KEY, profile);
+  }
+  if (rev < PROFILE_REV) write(PROFILE_REV_KEY, PROFILE_REV);
   return profile;
 }
 

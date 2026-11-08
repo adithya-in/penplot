@@ -386,6 +386,7 @@ function syncProfileInputs() {
   setNum('setPenFeed', profile.pen.feed);
   setNum('setDrawFeed', profile.feed.draw);
   setNum('setTravelFeed', profile.feed.travel);
+  setNum('setJogFeed', profile.feed.jog);
   $('setKeepOn').checked = Boolean(profile.keepMotorsOn);
   $('setSoftLimits').checked = Boolean(profile.softLimits);
   $('setHoming').checked = Boolean(profile.homing);
@@ -409,6 +410,7 @@ function readProfileInputs() {
   profile.pen.feed = clamp(numValue('setPenFeed', 200), 1, 10000);
   profile.feed.draw = clamp(numValue('setDrawFeed', 250), 1, 100000);
   profile.feed.travel = clamp(numValue('setTravelFeed', 300), 1, 100000);
+  profile.feed.jog = clamp(numValue('setJogFeed', 600), 1, 100000);
   profile.keepMotorsOn = $('setKeepOn').checked;
   profile.softLimits = $('setSoftLimits').checked;
   profile.homing = $('setHoming').checked;
@@ -431,7 +433,7 @@ function readProfileInputs() {
 function bindProfileControls() {
   ['setWorkX', 'setWorkY', 'setStepsX', 'setStepsY', 'setStepsZ',
     'setRateX', 'setRateY', 'setAccelX', 'setAccelY', 'setPenUp',
-    'setPenDown', 'setPenFeed', 'setDrawFeed', 'setTravelFeed',
+    'setPenDown', 'setPenFeed', 'setDrawFeed', 'setTravelFeed', 'setJogFeed',
     'setKeepOn', 'setSoftLimits', 'setHoming',
     'setInvertX', 'setInvertY', 'setInvertZ'].forEach((id) => {
     $(id).addEventListener('change', () => {
@@ -1421,7 +1423,7 @@ async function connect() {
   setConnecting(true);
   try {
     await serial.requestAndConnect();
-    toast('Connected. If the machine ignores moves, press Apply to load the profile.');
+    toast('Connected. Press Apply once to load the profile — this also enables the faster 600 mm/min jog.');
   } catch (err) {
     if (err.name === 'NotFoundError') toast('No serial port selected.', 'warn');
     else toast(`Could not open the port: ${err.message}`, 'err');
@@ -1595,7 +1597,9 @@ async function withSerial(label, action, { allowAlarm = false } = {}) {
 async function jog(axis, direction) {
   const step = Number($('jogStep').value) || 1;
   const delta = direction === '+' ? step : -step;
-  await withSerial('Jog failed', () => GRBL.jog(serial, axis, delta, profile.feed.travel));
+  const axisMax = axis === 'X' ? profile.maxRate.x : profile.maxRate.y;
+  const feed = Math.max(1, Math.min(profile.feed.jog || 600, axisMax));
+  await withSerial('Jog failed', () => GRBL.jog(serial, axis, delta, feed));
 }
 
 function wireMachine() {

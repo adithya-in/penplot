@@ -52,7 +52,7 @@ by hand:
 | --- | --- |
 | `DEFAULT_X/Y_STEPS_PER_MM` | 51.2 |
 | `DEFAULT_Z_STEPS_PER_MM` | 100.0 |
-| `DEFAULT_X/Y_MAX_RATE` | 300 mm/min |
+| `DEFAULT_X/Y_MAX_RATE` | 600 mm/min |
 | `DEFAULT_Z_MAX_RATE` | 200 mm/min |
 | `DEFAULT_X/Y_ACCELERATION` | 50 mm/s² |
 | `DEFAULT_Z_ACCELERATION` | 100 mm/s² |

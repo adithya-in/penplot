@@ -209,8 +209,9 @@ scripts and the README are excluded by `.vercelignore` and are not uploaded.
 1. **Connect Nano** and confirm the status dot turns green and the machine pill
    shows **Idle**.
 2. **Settings → Apply** once after flashing. This writes the profile, including
-   **Y inversion** (`$3=2`), to the controller's EEPROM. Keep **Invert Y**
-   ticked — the Y motor on this plotter is mounted in reverse.
+   **Y inversion** (`$3=2`), the **600 mm/min** max-rate/jog cap, and your
+   calibrated steps/mm, to the controller's EEPROM. Keep **Invert Y** ticked —
+   the Y motor on this plotter is mounted in reverse.
 3. Jog X/Y with the arrows until the pen is over the **bottom-left corner** of
    the drawing area. Use the 10 mm step first, then 1 mm.
 4. Jog Z down until the pen **just touches** the paper.
@@ -360,12 +361,13 @@ The right-hand **Settings** card holds the machine profile:
 | --- | --- | --- |
 | Paper X / Y | Usable paper area, mm | 150 × 150 |
 | Steps/mm X / Y / Z | Motor calibration | 51.2 / 51.2 / 100 |
-| Max rate X / Y | Maximum axis speed, mm/min | 300 / 300 |
+| Max rate X / Y | Maximum axis speed, mm/min (also caps jog) | 600 / 600 |
 | Accel X / Y | Acceleration, mm/s² | 50 / 50 |
 | Pen up Z / Pen down Z | Z heights for pen lift | 5 / 0 |
 | Pen feed | Z move speed, mm/min | 200 |
 | Draw feed | XY speed while drawing | 250 |
 | Travel feed | XY speed while moving with pen up | 300 |
+| Jog feed | XY speed for the jog arrows (capped by Max rate) | 600 |
 | Hold motors | Keep coils energised when idle | on |
 | Soft limits | GRBL soft limits | off |
 | Homing | GRBL homing cycle | off |
@@ -429,8 +431,8 @@ Z** and press **Apply**. If the pen presses too hard or misses lines, adjust
 
 ### Suggested conservative first run
 
-- Draw feed **100–150 mm/min**
-- Max rate **200–300 mm/min**
+- Draw feed **100-150 mm/min**
+- Max rate **600 mm/min** (jog/travel cap; lower it if a jog skips)
 - Accel **30–50 mm/s²**
 - Image width **50–80 mm**
 - Raster spacing **1.5–2 mm**
@@ -442,7 +444,9 @@ buzz, lower the feed and acceleration.
 
 ## 8. Machine controls and console
 
-- **Jog arrows** move X/Y by the selected step (0.1, 1, 10 or 50 mm).
+- **Jog arrows** move X/Y by the selected step (0.1, 1, 10 or 50 mm) at
+  **Jog feed** (600 mm/min by default). GRBL caps this at **Max rate X/Y**;
+  both are in Settings and need **Apply** to reach the controller.
 - **Zero here** sets the work origin (`G10 L20 P1 X0 Y0 Z0`).
 - **Unlock** clears a GRBL alarm (`$X`).
 - **Pen up / Pen down** move Z to the configured heights.

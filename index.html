@@ -317,8 +317,8 @@
             <label><span>Steps/mm X</span><input type="number" id="setStepsX" value="51.2" step="0.01"></label>
             <label><span>Steps/mm Y</span><input type="number" id="setStepsY" value="51.2" step="0.01"></label>
             <label><span>Steps/mm Z</span><input type="number" id="setStepsZ" value="100" step="0.01"></label>
-            <label><span>Max rate X</span><input type="number" id="setRateX" value="300" step="10"></label>
-            <label><span>Max rate Y</span><input type="number" id="setRateY" value="300" step="10"></label>
+            <label><span>Max rate X</span><input type="number" id="setRateX" value="600" step="10"></label>
+            <label><span>Max rate Y</span><input type="number" id="setRateY" value="600" step="10"></label>
             <label><span>Accel X</span><input type="number" id="setAccelX" value="50" step="5"></label>
             <label><span>Accel Y</span><input type="number" id="setAccelY" value="50" step="5"></label>
             <label><span>Pen up Z</span><input type="number" id="setPenUp" value="5" step="0.5"></label>
@@ -326,7 +326,9 @@
             <label><span>Pen feed</span><input type="number" id="setPenFeed" value="200" step="10"></label>
             <label><span>Draw feed</span><input type="number" id="setDrawFeed" value="250" step="10"></label>
             <label><span>Travel feed</span><input type="number" id="setTravelFeed" value="300" step="10"></label>
+            <label><span>Jog feed</span><input type="number" id="setJogFeed" value="600" step="10"></label>
           </div>
+          <p class="hint">Jog speed is capped by <b>Max rate X/Y</b>. If you raise Jog feed above that, raise Max rate too and press <b>Apply</b>.</p>
 
           <div class="checks">
             <label><input type="checkbox" id="setKeepOn" checked> Hold motors</label>
