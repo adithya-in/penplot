@@ -485,11 +485,12 @@ export function squiggleImage(img, opts) {
   const lineCount = Math.max(4, Math.round(lines));
   const yStep = Math.max(1, Math.round(h / lineCount));
   const amp = Math.max(0.1, amount);
-  const freq = Math.max(5, detail);
   const stepX = Math.max(1, Math.round(sampling));
-  // Keep the wave inside its row band. Plotterfun's original amplitude is tied
-  // to the line count, which overlaps rows on small images and turns the plot
-  // into a solid scribble.
+  // detail is now a wavelength in millimetres, not a raw pixel frequency.
+  // A 6 mm wave is gentle enough for a 28BYJ + gearbox; the old raw frequency
+  // could reverse Y every 0.6 mm and just vibrate in place.
+  const wavelengthMm = Math.max(1, detail);
+  const periodPx = Math.max(4, wavelengthMm / cell);
   const amplitudePx = amp * Math.max(0.75, yStep * 0.8);
   const cutoff = 6;
   const paths = [];
@@ -509,7 +510,7 @@ export function squiggleImage(img, opts) {
         continue;
       }
       const r = amplitudePx * (z / 255);
-      a += z / freq;
+      a += (2 * Math.PI / periodPx) * (0.35 + 0.65 * (z / 255));
       const yy = y + Math.sin(a) * r;
       pts.push({ x: x * cell, y: (h - yy) * cell });
     }

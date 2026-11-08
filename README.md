@@ -306,7 +306,7 @@ slow 28BYJ plotter than hundreds of dithered segments.
 
 - **Lines** — number of rows (10–200). More lines = more detail and longer plot.
 - **Wave amount** — how far the line swings (0.1–5).
-- **Detail** — wave frequency (5–256). Lower = smoother, higher = denser texture.
+- **Wavelength** — distance between waves in mm (2-20). Higher = smoother and easier for the motors; lower = denser texture.
 
 Press **Sketch** to apply the preset. It is an artistic line drawing, not a
 photocopy; use **Photo** (halftone) for a more photographic result.
@@ -525,7 +525,7 @@ Press **Unlock** first; then fix the setting that re-triggers it.
 | Nothing fits on the paper | Check `Paper X/Y`, image offsets and width. The warning banner tells you which axis is outside; the app clamps automatically. |
 | Image trace looks like random lines or almost nothing | Use **Scan lines** or **Dots** for a photo; **Outline** is only for logos and line art. The preview now shows the source image behind the paths so you can check the fit. |
 | Photo comes out as black/white stripes or a blob | Press **Photo** (Scan + Dither, 0.8 mm, one-way). Lower **Threshold** or tick **Invert** if the background is dark. A single pen cannot make continuous grey — dithered halftone is the closest result. |
-| Photo looks like a mesh or scribble | Press **Photo** for the halftone version, or reduce **Lines**, **Wave amount** and **Detail** in **Sketch** mode. |
+| Photo looks like a mesh or scribble | Press **Photo** for the halftone version, or reduce **Lines**, **Wave amount** and **Wavelength** in **Sketch** mode. |
 | Rows are shifted or the image looks torn | Turn on **One-way scan**, lower draw feed/accel, and check belt tension and pulley set screws. 28BYJ gearboxes have backlash; serpentine rows exaggerate it. |
 | Image is too coarse / missing detail | Use a larger **Width**, `Line spacing` 0.6–0.8 mm, and **Dots** + **Dither**. Use a finer pen. |
 | Image extends beyond the paper | The app now clips the toolpath at the edge instead of dragging it along the border. Reduce **Width** or press **Center**. |

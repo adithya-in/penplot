@@ -47,7 +47,7 @@ export const DRAW_DEFAULTS = {
   imageFeed: 150,       // mm/min for image G-code (text/SVG keep Draw feed)
   squiggleLines: 50,    // rows for the continuous squiggle mode
   squiggleAmount: 1.2,  // wave amplitude
-  squiggleDetail: 90,   // wave frequency
+  squiggleDetail: 6,    // wavelength in mm
   imgWidth: 100,        // mm
   imgOffsetX: 0,
   imgOffsetY: 0,
@@ -130,7 +130,14 @@ export function saveProfile(profile) {
 }
 
 export function loadDrawSettings() {
-  return merge(DRAW_DEFAULTS, read(DRAW_KEY));
+  const merged = merge(DRAW_DEFAULTS, read(DRAW_KEY));
+  // Older builds stored a raw pixel frequency (e.g. 90). It is now a
+  // wavelength in mm and must stay in the 2-20 mm range.
+  if (merged.squiggleDetail > 20) {
+    merged.squiggleDetail = DRAW_DEFAULTS.squiggleDetail;
+    write(DRAW_KEY, merged);
+  }
+  return merged;
 }
 
 export function saveDrawSettings(settings) {

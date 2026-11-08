@@ -267,7 +267,7 @@ function readDrawInputs() {
   draw.bridge = clamp(numValue('bridge', 0), 0, 10);
   draw.squiggleLines = clamp(numValue('squiggleLines', 60), 10, 200);
   draw.squiggleAmount = clamp(numValue('squiggleAmount', 1.5), 0.1, 5);
-  draw.squiggleDetail = clamp(numValue('squiggleDetail', 150), 5, 256);
+  draw.squiggleDetail = clamp(numValue('squiggleDetail', 6), 2, 20);
   draw.invert = $('invert').checked;
   draw.autoContrast = $('autoContrast').checked;
   draw.dither = $('dither').checked;
@@ -308,7 +308,7 @@ function updateLabels() {
   $('vBridge').textContent = draw.bridge;
   $('vSquiggleLines').textContent = Math.round(draw.squiggleLines);
   $('vSquiggleAmount').textContent = Number(draw.squiggleAmount).toFixed(1);
-  $('vSquiggleDetail').textContent = Math.round(draw.squiggleDetail);
+  $('vSquiggleDetail').textContent = Number(draw.squiggleDetail).toFixed(1);
   $('vSvgWidth').textContent = draw.svgWidth;
   $('vSvgTol').textContent = Number(draw.svgTol).toFixed(2);
   $('vFontSize').textContent = draw.fontSize;
@@ -902,14 +902,14 @@ function applySketchPreset(auto = false) {
   draw.imageMode = 'squiggle';
   draw.squiggleLines = 50;
   draw.squiggleAmount = 1.2;
-  draw.squiggleDetail = 90;
+  draw.squiggleDetail = 6;
   draw.threshold = 128;
   draw.blur = 1;
   draw.modeAuto = auto;
   $('imageMode').value = 'squiggle';
   $('squiggleLines').value = 50;
   $('squiggleAmount').value = 1.2;
-  $('squiggleDetail').value = 90;
+  $('squiggleDetail').value = 6;
   $('threshold').value = 128;
   $('blur').value = 1;
   saveDrawSettings(draw);
