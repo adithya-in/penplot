@@ -308,7 +308,11 @@
             <button class="btn tiny" id="btnPenDown">Pen down</button>
             <button class="btn tiny" id="btnHome" title="Requires limit switches">Home</button>
           </div>
-          <p class="hint">Hold an arrow to jog continuously; release to stop. A quick tap moves one step.</p>
+          <label class="field z-offset">
+            <span>Z offset <b id="vZOffset">0.0</b> mm</span>
+            <input type="range" id="zOffset" min="-10" max="10" step="0.1" value="0">
+          </label>
+          <p class="hint">Z offset is added to Pen up and Pen down. Move it, then press Pen up or Pen down to test. Hold an arrow to jog continuously.</p>
         </section>
 
         <section class="card">

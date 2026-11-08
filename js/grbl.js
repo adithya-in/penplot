@@ -55,7 +55,7 @@ export async function jog(serial, axis, distance, feed) {
  * avoids a second "ok" round-trip that used to fail with "Another command is
  * still waiting for ok" when the button was clicked twice. */
 export async function penUp(serial, profile, block = true) {
-  const z = profile.pen.up;
+  const z = profile.pen.up + (Number(profile.pen.zOffset) || 0);
   const rate = profile.pen.feed;
   const cmd = block
     ? `G21 G90 G1 Z${F(z)} F${F(rate, 0)}`
@@ -64,7 +64,7 @@ export async function penUp(serial, profile, block = true) {
 }
 
 export async function penDown(serial, profile) {
-  const z = profile.pen.down;
+  const z = profile.pen.down + (Number(profile.pen.zOffset) || 0);
   const rate = profile.pen.feed;
   return serial.sendLine(`G21 G90 G1 Z${F(z)} F${F(rate, 0)}`, 30000);
 }

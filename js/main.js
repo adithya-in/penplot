@@ -391,6 +391,8 @@ function syncProfileInputs() {
   setNum('setDrawFeed', profile.feed.draw);
   setNum('setTravelFeed', profile.feed.travel);
   setNum('setJogFeed', profile.feed.jog);
+  $('zOffset').value = Number(profile.pen.zOffset) || 0;
+  $('vZOffset').textContent = Number(profile.pen.zOffset || 0).toFixed(1);
   $('setKeepOn').checked = Boolean(profile.keepMotorsOn);
   $('setSoftLimits').checked = Boolean(profile.softLimits);
   $('setHoming').checked = Boolean(profile.homing);
@@ -411,6 +413,7 @@ function readProfileInputs() {
   profile.accel.y = clamp(numValue('setAccelY', 50), 0.1, 10000);
   profile.pen.up = numValue('setPenUp', 5);
   profile.pen.down = numValue('setPenDown', 0);
+  profile.pen.zOffset = clamp(numValue('zOffset', 0), -10, 10);
   profile.pen.feed = clamp(numValue('setPenFeed', 200), 1, 10000);
   profile.feed.draw = clamp(numValue('setDrawFeed', 250), 1, 100000);
   profile.feed.travel = clamp(numValue('setTravelFeed', 300), 1, 100000);
@@ -457,6 +460,12 @@ function bindProfileControls() {
   $('btnApply').addEventListener('click', applyProfileToMachine);
   $('btnRefresh').addEventListener('click', refreshFromMachine);
   $('btnResetProfile').addEventListener('click', resetProfile);
+
+  $('zOffset').addEventListener('input', () => {
+    readProfileInputs();
+    $('vZOffset').textContent = Number(profile.pen.zOffset).toFixed(1);
+    if (state.paths.length) rebuildCurrent();
+  });
 }
 
 function resetProfile() {
@@ -1411,6 +1420,7 @@ function updateMachineControls() {
   ['btnZero', 'btnRefresh', 'btnPenUp', 'btnPenDown', 'btnHome', 'btnApply'].forEach((id) => {
     $(id).disabled = !on;
   });
+  $('zOffset').disabled = !on;
   // Unlock must stay available so an alarm can be cleared.
   $('btnUnlock').disabled = !serial.connected || state.streaming;
   $('cmdInput').disabled = !on;
@@ -1837,12 +1847,13 @@ function wireCalibration() {
       toast('No position report yet. Connect and jog Z first.', 'warn');
       return;
     }
-    profile.pen.down = round(z, 2);
+    const zOff = Number(profile.pen.zOffset) || 0;
+    profile.pen.down = round(z - zOff, 2);
     if (profile.pen.up <= profile.pen.down) profile.pen.up = profile.pen.down + 1;
     saveProfile(profile);
     syncProfileInputs();
     rebuildCurrent();
-    toast(`Pen DOWN captured at Z${profile.pen.down} mm.`);
+    toast(`Pen DOWN captured at Z${z} mm.`);
   });
 
   $('calUp').addEventListener('click', () => {
@@ -1851,12 +1862,13 @@ function wireCalibration() {
       toast('No position report yet. Connect and jog Z first.', 'warn');
       return;
     }
-    profile.pen.up = round(z, 2);
+    const zOff = Number(profile.pen.zOffset) || 0;
+    profile.pen.up = round(z - zOff, 2);
     if (profile.pen.up <= profile.pen.down) profile.pen.down = profile.pen.up - 1;
     saveProfile(profile);
     syncProfileInputs();
     rebuildCurrent();
-    toast(`Pen UP captured at Z${profile.pen.up} mm.`);
+    toast(`Pen UP captured at Z${z} mm.`);
   });
 
   $('calSave').addEventListener('click', () => {

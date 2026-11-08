@@ -15,7 +15,7 @@ export const DEFAULT_PROFILE = {
   maxRate: { x: 600, y: 600, z: 200 }, // mm/min (jog/travel cap)
   accel: { x: 50, y: 50, z: 100 },     // mm/s^2
   travel: { x: 150, y: 150, z: 15 },   // soft-limit travel, mm
-  pen: { up: 5, down: 0, feed: 200, dwell: 0.2 },
+  pen: { up: 5, down: 0, feed: 200, dwell: 0.2, zOffset: 0 },
   feed: { draw: 250, travel: 300, jog: 600 },
   softLimits: false,
   homing: false,

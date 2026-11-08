@@ -220,7 +220,8 @@ scripts and the README are excluded by `.vercelignore` and are not uploaded.
    so they read `0.00` after zeroing.
 6. Set **Pen down Z = 0** and **Pen up Z = 3–5 mm** (or use
    **Calibration wizard** now: *Capture as DOWN* reads 0, lift, *Capture as
-   UP*). Press **Apply**.
+   UP*). Press **Apply**. If the pen is slightly too high or low, use the
+   **Z offset** slider in the Machine panel instead of editing the heights.
 7. Load an image (or the demo), press **Center**, check the preview, and press
    **Draw**. Start with a small, simple drawing and a low draw feed.
 
@@ -366,6 +367,7 @@ The right-hand **Settings** card holds the machine profile:
 | Max rate X / Y | Maximum axis speed, mm/min (also caps jog) | 600 / 600 |
 | Accel X / Y | Acceleration, mm/s² | 50 / 50 |
 | Pen up Z / Pen down Z | Z heights for pen lift | 5 / 0 |
+| Z offset | Added to both pen heights for quick fine-tuning | 0 |
 | Pen feed | Z move speed, mm/min | 200 |
 | Draw feed | XY speed while drawing text/SVG | 250 |
 | Image feed | XY speed for image G-code | 150 |
@@ -429,8 +431,10 @@ DOWN** (the box now shows work Z `0.00`), lift the pen a few millimetres, then
 
 The pen must be **up** for every travel move and **down** only while drawing.
 Verify with **Pen up** / **Pen down**. If Z moves the wrong way, tick **Invert
-Z** and press **Apply**. If the pen presses too hard or misses lines, adjust
-**Pen down Z** by 0.1–0.2 mm.
+Z** and press **Apply**. If the pen presses too hard or misses lines, use the
+**Z offset** slider in the Machine panel: it adds the same amount to both pen
+heights, so you can raise or lower the whole pen action without editing the
+calibrated values. Press **Pen up** or **Pen down** after moving it to test.
 
 ### Suggested conservative first run
 
@@ -454,7 +458,9 @@ buzz, lower the feed and acceleration.
   controller.
 - **Zero here** sets the work origin (`G10 L20 P1 X0 Y0 Z0`).
 - **Unlock** clears a GRBL alarm (`$X`).
-- **Pen up / Pen down** move Z to the configured heights.
+- **Pen up / Pen down** move Z to the configured heights plus the **Z offset**.
+- **Z offset** slider adds the same amount to both pen heights; move it, then
+  press **Pen up** or **Pen down** to test. It is saved with the profile.
 - **Home** is intentionally blocked unless homing is enabled; there are no limit
   switches.
 - **Simulate** plays the toolpath on the preview without moving the machine.

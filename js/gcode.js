@@ -69,8 +69,9 @@ export function buildGcode(paths, profile, { returnHome = false, feedOverride = 
     ? { ...profile, feed: { ...profile.feed, draw: feedOverride } }
     : profile;
   const stats = pathStats(paths, statsProfile);
-  const up = f3(profile.pen.up);
-  const down = f3(profile.pen.down);
+  const zOff = Number(profile.pen.zOffset) || 0;
+  const up = f3(profile.pen.up + zOff);
+  const down = f3(profile.pen.down + zOff);
   const penFeed = Math.max(1, Math.round(profile.pen.feed));
   const drawFeed = Math.max(1, Math.round(feedOverride ?? profile.feed.draw));
   const dwell = Math.max(0, profile.pen.dwell);
