@@ -37,6 +37,7 @@ export const DRAW_DEFAULTS = {
   spacing: 1.0,         // mm between raster lines
   simplify: 0.2,        // mm
   bridge: 0,            // merge gaps up to N cells
+  oneWay: false,        // raster rows always left-to-right (no serpentine)
   imgWidth: 100,        // mm
   imgOffsetX: 0,
   imgOffsetY: 0,

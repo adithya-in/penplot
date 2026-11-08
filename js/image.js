@@ -85,9 +85,10 @@ export function boxBlur(gray, width, height, radius) {
   return out;
 }
 
-/* threshold: 0..255, also used as an exposure offset for dithering. */
+/* threshold: 0..255. Higher values make more pixels dark (the intuitive
+ * direction). The same offset is used as an exposure bias when dithering. */
 export function makeMask(gray, width, height, { threshold = 128, invert = false, dither = false } = {}) {
-  const bias = threshold - 128;
+  const bias = 128 - threshold;
   const buf = new Float32Array(gray.length);
   for (let i = 0; i < buf.length; i++) buf[i] = Math.max(0, Math.min(255, gray[i] + bias));
 
@@ -157,7 +158,7 @@ function findRuns(isDark, length, bridge) {
   return runs;
 }
 
-export function rasterPaths(mask, width, height, cell, { mode = 'scan', bridge = 0 } = {}) {
+export function rasterPaths(mask, width, height, cell, { mode = 'scan', bridge = 0, oneWay = false } = {}) {
   const paths = [];
   const yOf = (row) => (height - row - 0.5) * cell;
 
@@ -180,7 +181,7 @@ export function rasterPaths(mask, width, height, cell, { mode = 'scan', bridge =
   if (mode === 'columns') {
     for (let col = 0; col < width; col++) {
       const x = (col + 0.5) * cell;
-      const reverse = col % 2 === 1;
+      const reverse = !oneWay && col % 2 === 1;
       const runs = findRuns((row) => mask[row * width + col], height, bridge);
       if (reverse) runs.reverse();
       for (const [a, b] of runs) {
@@ -193,10 +194,10 @@ export function rasterPaths(mask, width, height, cell, { mode = 'scan', bridge =
     return paths;
   }
 
-  // scan (default): horizontal serpentine rows
+  // scan (default): horizontal rows
   for (let row = 0; row < height; row++) {
     const y = yOf(row);
-    const reverse = row % 2 === 1;
+    const reverse = !oneWay && row % 2 === 1;
     const runs = findRuns((col) => mask[row * width + col], width, bridge);
     if (reverse) runs.reverse();
     for (const [a, b] of runs) {
@@ -229,7 +230,9 @@ export function traceImage(img, opts) {
 
   const cell = targetWidthMm / w;
   const epsPx = Math.max(0.15, simplifyMm / cell);
-  const raw = traceMask(mask, w, h, { simplify: epsPx, minLength: 1.5 });
+  // 3 px removes JPEG speckles and tiny isolated islands without losing
+  // normal line-art detail.
+  const raw = traceMask(mask, w, h, { simplify: epsPx, minLength: 3 });
 
   const paths = raw.map((p) => {
     let pts = p.points.map((pt) => ({ x: pt.x * cell, y: (h - pt.y) * cell }));
@@ -251,6 +254,7 @@ export function rasterizeImage(img, opts) {
     blur = 1,
     dither = false,
     bridge = 0,
+    oneWay = false,
     maxCells = 90000
   } = opts;
 
@@ -258,7 +262,7 @@ export function rasterizeImage(img, opts) {
   const { gray } = imageToGray(img, w, h);
   const blurred = boxBlur(gray, w, h, blur);
   const mask = makeMask(blurred, w, h, { threshold, invert, dither });
-  const paths = rasterPaths(mask, w, h, cell, { mode, bridge });
+  const paths = rasterPaths(mask, w, h, cell, { mode, bridge, oneWay });
 
   return { paths, width: targetWidthMm, height: h * cell, cells: w * h, grid: { w, h, cell } };
 }

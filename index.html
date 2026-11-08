@@ -54,6 +54,7 @@
             <div class="row">
               <button class="btn tiny ghost" id="btnDemo">Load demo</button>
               <button class="btn tiny ghost" id="btnCenterImage" title="Fit the image on the paper and centre it">Center</button>
+              <button class="btn tiny ghost" id="btnPhotoPreset" title="Scan lines + dither + one-way rows for photos">Photo</button>
             </div>
             <span class="muted tiny" id="imgInfo">no image</span>
           </div>
@@ -101,6 +102,7 @@
           <div class="checks">
             <label><input type="checkbox" id="invert"> Invert</label>
             <label class="raster-only"><input type="checkbox" id="dither"> Dither (photos)</label>
+            <label class="raster-only" title="Always draw raster rows left-to-right. Slower, but avoids backlash stripes."><input type="checkbox" id="oneWay"> One-way scan</label>
             <label><input type="checkbox" id="autoDraw" checked> Draw after upload</label>
           </div>
 
@@ -108,7 +110,7 @@
             <label class="field"><span>Offset X</span><input type="number" id="imgOffsetX" value="0" step="1"></label>
             <label class="field"><span>Offset Y</span><input type="number" id="imgOffsetY" value="0" step="1"></label>
           </div>
-          <p class="hint">The preview shows your image behind the toolpath. Use <b>Center</b> to fit it on the paper. Outline is for logos and line art; use Scan lines or Dots for photos.</p>
+          <p class="hint">The preview shows your image behind the toolpath. <b>Center</b> fits it on the paper. Use <b>Outline</b> for logos, or press <b>Photo</b> for dithered scan lines. A single pen draws photos as a halftone, not continuous grey.</p>
         </section>
 
         <!-- svg -->

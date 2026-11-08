@@ -165,6 +165,7 @@ function syncDrawInputs() {
   $('bridge').value = draw.bridge;
   $('invert').checked = Boolean(draw.invert);
   $('dither').checked = Boolean(draw.dither);
+  $('oneWay').checked = Boolean(draw.oneWay);
   $('autoDraw').checked = draw.autoDraw !== false;
   $('imgOffsetX').value = draw.imgOffsetX;
   $('imgOffsetY').value = draw.imgOffsetY;
@@ -194,6 +195,7 @@ function readDrawInputs() {
   draw.bridge = clamp(numValue('bridge', 0), 0, 10);
   draw.invert = $('invert').checked;
   draw.dither = $('dither').checked;
+  draw.oneWay = $('oneWay').checked;
   draw.autoDraw = $('autoDraw').checked;
   draw.imgOffsetX = numValue('imgOffsetX', 0);
   draw.imgOffsetY = numValue('imgOffsetY', 0);
@@ -253,7 +255,7 @@ function bindDrawControls() {
     'imgOffsetX', 'imgOffsetY'
   ].forEach((id) => regenOn(id));
 
-  ['invert', 'dither'].forEach((id) => regenOn(id, 'change'));
+  ['invert', 'dither', 'oneWay'].forEach((id) => regenOn(id, 'change'));
   regenOn('imageMode', 'change');
 
   $('autoDraw').addEventListener('change', () => {
@@ -466,6 +468,7 @@ async function generate({ auto = false } = {}) {
   if (id !== state.genId) return;
 
   let rawPaths = [];
+  let rasterMode = false;
   try {
     if (state.source === 'image') {
       if (!imageEl) {
@@ -486,12 +489,14 @@ async function generate({ auto = false } = {}) {
           simplifyMm: draw.simplify
         });
       } else {
+        rasterMode = true;
         result = rasterizeImage(imageEl, {
           ...opts,
           spacingMm: draw.spacing,
           mode: draw.imageMode,
           dither: draw.dither,
-          bridge: draw.bridge
+          bridge: draw.bridge,
+          oneWay: draw.oneWay
         });
       }
       rawPaths = result.paths;
@@ -507,8 +512,12 @@ async function generate({ auto = false } = {}) {
       preview.setSource(imageSource);
       rawPaths = translatePaths(rawPaths, draw.imgOffsetX, draw.imgOffsetY);
       rawPaths = cleanPaths(rawPaths);
-      rawPaths = optimizePaths(rawPaths, { x: 0, y: 0 });
-      rawPaths = twoOpt(rawPaths, { x: 0, y: 0 });
+      // Raster rows are already in a good order. Re-ordering them makes the
+      // rows jump around and exaggerates belt/gearbox backlash.
+      if (!rasterMode) {
+        rawPaths = optimizePaths(rawPaths, { x: 0, y: 0 });
+        rawPaths = twoOpt(rawPaths, { x: 0, y: 0 });
+      }
     } else if (state.source === 'svg') {
       imageSource = null;
       preview.setSource(null);
@@ -558,6 +567,17 @@ async function generate({ auto = false } = {}) {
   }
 
   if (id !== state.genId) return;
+
+  if (!rawPaths.length) {
+    setGenerating(false);
+    clearToolpath('nothing to draw');
+    if (state.source === 'image') {
+      toast('Nothing to draw: no dark pixels at this threshold. Lower the Threshold or tick Invert.', 'warn');
+    } else {
+      toast('Nothing to draw. Check the source.', 'warn');
+    }
+    return;
+  }
 
   const rawCheck = checkBounds(rawPaths, profile);
   const paper = clampPaths(rawPaths, profile.work);
@@ -729,6 +749,26 @@ function setImageThumb(image) {
   }
 }
 
+/* LaserGRBL-style starting point for a photograph: dithered scan lines,
+ * finer spacing, and one-way rows so backlash does not stripe the image. */
+function applyPhotoPreset() {
+  draw.imageMode = 'scan';
+  draw.dither = true;
+  draw.spacing = 0.8;
+  draw.bridge = 1;
+  draw.threshold = 128;
+  draw.oneWay = true;
+  $('imageMode').value = 'scan';
+  $('dither').checked = true;
+  $('spacing').value = 0.8;
+  $('bridge').value = 1;
+  $('threshold').value = 128;
+  $('oneWay').checked = true;
+  saveDrawSettings(draw);
+  applyModeVisibility();
+  updateLabels();
+}
+
 /* Show a preview of the image in the drop tile and pick a useful starting
  * conversion mode. Photos need scan lines/dither; outline is for line art. */
 function prepareImage(image, name) {
@@ -742,11 +782,8 @@ function prepareImage(image, name) {
     imageIsPhoto = false;
   }
   if (imageIsPhoto && draw.imageMode === 'trace') {
-    draw.imageMode = 'scan';
-    $('imageMode').value = 'scan';
-    saveDrawSettings(draw);
-    applyModeVisibility();
-    toast('Photo detected — switched to Scan lines. Choose Outline for logos and line art.', 'warn');
+    applyPhotoPreset();
+    toast('Photo preset: Scan lines + dither, 0.8 mm spacing, one-way rows. Untick one-way to save time.', 'warn');
   }
   setImageThumb(image);
 }
@@ -860,6 +897,12 @@ function wireFiles() {
     } catch (err) {
       toast(`Could not create the demo: ${err.message}`, 'err');
     }
+  });
+
+  $('btnPhotoPreset').addEventListener('click', () => {
+    applyPhotoPreset();
+    toast('Photo preset applied: Scan lines + dither, 0.8 mm spacing, one-way rows.');
+    if (imageEl) generate();
   });
 
   $('btnCenterImage').addEventListener('click', () => {

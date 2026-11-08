@@ -261,14 +261,31 @@ plotted before sending it. The dashed blue rectangle is the image boundary.
 manually.
 
 If the image is a photo, the app detects the many mid-grey tones and switches
-from **Outline** to **Scan lines** automatically. Outline mode on a photo only
-keeps a handful of contours, which looks like random lines.
+from **Outline** to a photo-friendly preset: **Scan lines + Dither**, 0.8 mm
+spacing and one-way rows. You can re-apply it any time with the **Photo**
+button. Outline mode on a photo only keeps a handful of contours, which looks
+like random lines.
+
+A single-colour pen cannot reproduce continuous grey. Photos are drawn as a
+**halftone**: dithered black dots/segments that the eye blends into shades.
+Expect an artistic approximation, not a photocopy.
+
+- **Threshold** now works in the intuitive direction: higher = more ink.
+- **Dither** converts greys into a fine black/white pattern; leave it on for photos.
+- **One-way scan** draws every row left-to-right instead of snaking. It is
+  slower (the pen returns across the row) but removes the horizontal stripes
+  caused by backlash in the 28BYJ gearboxes and belts.
+- For the most detail, use **Dots** with `Dither` and `Line spacing` 0.6–0.8 mm.
+  It is slow because the pen lifts between dots.
 
 ### Image — **Scan lines**
 Converts the image to horizontal strokes, one per raster line. Best for photos
 and solid shapes. Adjust `Line spacing` (smaller = more detail and much longer
 draw time), `Threshold`, `Dither` for photos, and `Bridge gaps` to join small
 breaks in a scan line.
+
+If the result is a black blob, the threshold is too high or the image has a dark
+background — tick **Invert**. If it is all white, lower the threshold.
 
 ### Image — **Vertical hatch**
 The same raster conversion rotated 90°. Use it when horizontal lines fight with
@@ -468,6 +485,9 @@ Press **Unlock** first; then fix the setting that re-triggers it.
 | Disconnects mid-drawing | Use a shorter/quality USB cable, add the 100 µF capacitor, and keep the motor supply wiring away from the USB cable. |
 | Nothing fits on the paper | Check `Paper X/Y`, image offsets and width. The warning banner tells you which axis is outside; the app clamps automatically. |
 | Image trace looks like random lines or almost nothing | Use **Scan lines** or **Dots** for a photo; **Outline** is only for logos and line art. The preview now shows the source image behind the paths so you can check the fit. |
+| Photo comes out as black/white stripes or a blob | Press **Photo** (Scan + Dither, 0.8 mm, one-way). Lower **Threshold** or tick **Invert** if the background is dark. A single pen cannot make continuous grey — dithered halftone is the closest result. |
+| Rows are shifted or the image looks torn | Turn on **One-way scan**, lower draw feed/accel, and check belt tension and pulley set screws. 28BYJ gearboxes have backlash; serpentine rows exaggerate it. |
+| Image is too coarse / missing detail | Use a larger **Width**, `Line spacing` 0.6–0.8 mm, and **Dots** + **Dither**. Use a finer pen. |
 | Image is not centred on the paper | Press **Center** in the Image tab. It fits the image inside the paper and sets both offsets. |
 | Text appears upside down or off the page | Text uses a top-left origin; increase `Offset Y (top)` and check rotation. |
 | Auto-draw starts before I am ready | Untick **Draw after upload**, or press **Cancel** during the 5-second countdown. |
