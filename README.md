@@ -260,11 +260,12 @@ plotted before sending it. The dashed blue rectangle is the image boundary.
 **Center** fits the image to the paper and centres it; `Offset X/Y` places it
 manually.
 
-If the image is a photo, the app detects the many mid-grey tones and switches
-from **Outline** to the **Photo** preset: **Scan lines + Dither**, 0.8 mm
-spacing and one-way rows. Press **Sketch** for a **continuous-line Squiggle**
-drawing instead. Outline mode on a photo only keeps a handful of contours,
-which looks like random lines.
+If the image is a photo, the app detects the mid-grey tones and switches to
+**Sketch** (continuous Squiggle), because one line per row is far kinder to a
+28BYJ plotter than hundreds of dithered strokes. Press **Photo** for a
+**Scan lines + Dither** halftone instead. Press **Outline** for logos and line
+art. A newly uploaded logo switches back to Outline automatically; manually
+choosing a mode stops the automatic switching.
 
 A single-colour pen cannot reproduce continuous grey. Photos are drawn as a
 **halftone**: dithered black dots/segments that the eye blends into shades.
@@ -282,7 +283,9 @@ Expect an artistic approximation, not a photocopy.
   it when Floyd–Steinberg looks too noisy.
 - In solid areas, adjacent raster runs that overlap are joined into one
   zig-zag path (the same idea as GRBL-Plotter's fill). This greatly reduces pen
-  lifts and the blobs/backlash they cause.
+  lifts and the blobs/backlash they cause. **Connect rows** is automatically
+  disabled whenever **Dither** or **Ordered** is on, because joining dithered
+  runs would smear the image.
 - Paths are **clipped** at the paper edge, not dragged along it. An oversized
   image is cut off cleanly instead of drawing a border line.
 - **One-way scan** draws every row left-to-right instead of snaking. It is

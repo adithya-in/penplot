@@ -298,7 +298,7 @@ function linkRuns(groups) {
   return paths;
 }
 
-export function rasterPaths(mask, width, height, cell, { mode = 'scan', bridge = 0, oneWay = false } = {}) {
+export function rasterPaths(mask, width, height, cell, { mode = 'scan', bridge = 0, oneWay = false, connectRows = true } = {}) {
   if (mode === 'dots') {
     // Artistic stippling: one short vertical stroke per dark cell.
     const paths = [];
@@ -319,11 +319,21 @@ export function rasterPaths(mask, width, height, cell, { mode = 'scan', bridge =
 
   if (mode === 'columns') {
     const groups = [];
+    const separate = [];
     for (let col = 0; col < width; col++) {
       const x = (col + 0.5) * cell;
       const reverse = !oneWay && col % 2 === 1;
       const runs = findRuns((row) => mask[row * width + col], height, bridge);
       if (reverse) runs.reverse();
+      if (!connectRows) {
+        for (const [a, b] of runs) {
+          const top = (height - a) * cell;
+          const bottom = (height - b - 1) * cell;
+          const pts = reverse ? [{ x, y: bottom }, { x, y: top }] : [{ x, y: top }, { x, y: bottom }];
+          separate.push({ points: pts, closed: false });
+        }
+        continue;
+      }
       groups.push(runs.map(([a, b]) => {
         const top = (height - a) * cell;
         const bottom = (height - b - 1) * cell;
@@ -334,17 +344,27 @@ export function rasterPaths(mask, width, height, cell, { mode = 'scan', bridge =
           : { p1: { x, y: top }, p2: { x, y: bottom }, a1: lo, a2: hi };
       }));
     }
-    return linkRuns(groups);
+    return connectRows ? linkRuns(groups) : separate;
   }
 
   // scan (default): horizontal rows
   const groups = [];
+  const separate = [];
   const yOf = (row) => (height - row - 0.5) * cell;
   for (let row = 0; row < height; row++) {
     const y = yOf(row);
     const reverse = !oneWay && row % 2 === 1;
     const runs = findRuns((col) => mask[row * width + col], width, bridge);
     if (reverse) runs.reverse();
+    if (!connectRows) {
+      for (const [a, b] of runs) {
+        const x1 = a * cell;
+        const x2 = (b + 1) * cell;
+        const pts = reverse ? [{ x: x2, y }, { x: x1, y }] : [{ x: x1, y }, { x: x2, y }];
+        separate.push({ points: pts, closed: false });
+      }
+      continue;
+    }
     groups.push(runs.map(([a, b]) => {
       const x1 = a * cell;
       const x2 = (b + 1) * cell;
@@ -353,7 +373,7 @@ export function rasterPaths(mask, width, height, cell, { mode = 'scan', bridge =
         : { p1: { x: x1, y }, p2: { x: x2, y }, a1: x1, a2: x2 };
     }));
   }
-  return linkRuns(groups);
+  return connectRows ? linkRuns(groups) : separate;
 }
 
 /* Vector outlines from a photo/logo. */
@@ -409,6 +429,7 @@ export function rasterizeImage(img, opts) {
     ordered = false,
     bridge = 0,
     oneWay = false,
+    connectRows = true,
     autoContrast = true,
     brightness = 0,
     contrast = 0,
@@ -422,7 +443,10 @@ export function rasterizeImage(img, opts) {
   const toned = applyTone(leveled, { brightness, contrast, gamma });
   const blurred = boxBlur(toned, w, h, blur);
   const mask = makeMask(blurred, w, h, { threshold, invert, dither, ordered });
-  const paths = rasterPaths(mask, w, h, cell, { mode, bridge, oneWay });
+  // Run-linking is for solid fills. On dithered output it would join runs
+  // across white gaps and turn the image into a few long zig-zags.
+  const linkRows = (dither || ordered) ? false : connectRows;
+  const paths = rasterPaths(mask, w, h, cell, { mode, bridge, oneWay, connectRows: linkRows });
 
   return { paths, width: targetWidthMm, height: h * cell, cells: w * h, grid: { w, h, cell } };
 }

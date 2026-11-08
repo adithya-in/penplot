@@ -39,13 +39,14 @@ export const DRAW_DEFAULTS = {
   gamma: 1,            // 0.2..3 (1 = neutral)
   dither: false,
   ordered: false,
+  connectRows: true,
   spacing: 1.0,         // mm between raster lines
   simplify: 0.2,        // mm
   bridge: 0,            // merge gaps up to N cells
   oneWay: false,        // raster rows always left-to-right (no serpentine)
-  squiggleLines: 60,    // rows for the continuous squiggle mode
+  squiggleLines: 50,    // rows for the continuous squiggle mode
   squiggleAmount: 1.2,  // wave amplitude
-  squiggleDetail: 110,  // wave frequency
+  squiggleDetail: 90,   // wave frequency
   imgWidth: 100,        // mm
   imgOffsetX: 0,
   imgOffsetY: 0,
@@ -64,7 +65,8 @@ export const DRAW_DEFAULTS = {
   textOffsetY: 40,
   textAngle: 0,
   // safety / workflow
-  autoDraw: true
+  autoDraw: true,
+  modeAuto: true
 };
 
 function merge(base, extra) {

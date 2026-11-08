@@ -230,6 +230,7 @@ function syncDrawInputs() {
   $('autoContrast').checked = draw.autoContrast !== false;
   $('dither').checked = Boolean(draw.dither);
   $('ordered').checked = Boolean(draw.ordered);
+  $('connectRows').checked = draw.connectRows !== false;
   $('oneWay').checked = Boolean(draw.oneWay);
   $('autoDraw').checked = draw.autoDraw !== false;
   $('imgOffsetX').value = draw.imgOffsetX;
@@ -268,6 +269,7 @@ function readDrawInputs() {
   draw.autoContrast = $('autoContrast').checked;
   draw.dither = $('dither').checked;
   draw.ordered = $('ordered').checked;
+  draw.connectRows = $('connectRows').checked;
   draw.oneWay = $('oneWay').checked;
   draw.autoDraw = $('autoDraw').checked;
   draw.imgOffsetX = numValue('imgOffsetX', 0);
@@ -339,8 +341,13 @@ function bindDrawControls() {
     'imgOffsetX', 'imgOffsetY'
   ].forEach((id) => regenOn(id));
 
-  ['invert', 'autoContrast', 'dither', 'ordered', 'oneWay'].forEach((id) => regenOn(id, 'change'));
+  ['invert', 'autoContrast', 'dither', 'ordered', 'connectRows', 'oneWay'].forEach((id) => regenOn(id, 'change'));
   regenOn('imageMode', 'change');
+  $('imageMode').addEventListener('change', () => {
+    // A manual mode choice must not be overwritten by the next image upload.
+    draw.modeAuto = false;
+    saveDrawSettings(draw);
+  });
 
   $('autoDraw').addEventListener('change', () => {
     draw.autoDraw = $('autoDraw').checked;
@@ -598,7 +605,8 @@ async function generate({ auto = false } = {}) {
           dither: draw.dither,
           ordered: draw.ordered,
           bridge: draw.bridge,
-          oneWay: draw.oneWay
+          oneWay: draw.oneWay,
+          connectRows: draw.connectRows !== false
         });
       }
       rawPaths = result.paths;
@@ -853,7 +861,7 @@ function setImageThumb(image) {
 
 /* Classic halftone starting point for a photograph: dithered scan lines,
  * finer spacing, and one-way rows so backlash does not stripe the image. */
-function applyHalftonePreset() {
+function applyHalftonePreset(auto = false) {
   draw.imageMode = 'scan';
   draw.dither = true;
   draw.ordered = false;
@@ -861,6 +869,8 @@ function applyHalftonePreset() {
   draw.bridge = 1;
   draw.threshold = 128;
   draw.oneWay = true;
+  draw.connectRows = false;
+  draw.modeAuto = auto;
   $('imageMode').value = 'scan';
   $('dither').checked = true;
   $('ordered').checked = false;
@@ -868,6 +878,7 @@ function applyHalftonePreset() {
   $('bridge').value = 1;
   $('threshold').value = 128;
   $('oneWay').checked = true;
+  $('connectRows').checked = false;
   saveDrawSettings(draw);
   applyModeVisibility();
   updateLabels();
@@ -875,17 +886,18 @@ function applyHalftonePreset() {
 
 /* Continuous-line sketch, adapted from mitxela/plotterfun's Squiggle
  * algorithm. One line per row; very few pen lifts. */
-function applySketchPreset() {
+function applySketchPreset(auto = false) {
   draw.imageMode = 'squiggle';
-  draw.squiggleLines = 60;
+  draw.squiggleLines = 50;
   draw.squiggleAmount = 1.2;
-  draw.squiggleDetail = 110;
+  draw.squiggleDetail = 90;
   draw.threshold = 128;
   draw.blur = 1;
+  draw.modeAuto = auto;
   $('imageMode').value = 'squiggle';
-  $('squiggleLines').value = 60;
+  $('squiggleLines').value = 50;
   $('squiggleAmount').value = 1.2;
-  $('squiggleDetail').value = 110;
+  $('squiggleDetail').value = 90;
   $('threshold').value = 128;
   $('blur').value = 1;
   saveDrawSettings(draw);
@@ -900,14 +912,28 @@ function prepareImage(image, name) {
   imageName = name;
   imageSource = null;
   preview.setSource(null);
+  let tone = null;
   try {
-    imageIsPhoto = imageToneInfo(image).mid > 0.32;
+    tone = imageToneInfo(image);
+    imageIsPhoto = tone.mid > 0.22;
   } catch {
     imageIsPhoto = false;
   }
-  if (imageIsPhoto && draw.imageMode === 'trace') {
-    applyHalftonePreset();
-    toast('Photo detected — using Scan lines + dither. Press Sketch for a continuous-line version.', 'warn');
+
+  if (draw.modeAuto !== false) {
+    if (imageIsPhoto) {
+      applySketchPreset(true);
+      toast('Photo detected — using Sketch (continuous line). Press Photo for a halftone.', 'warn');
+    } else {
+      draw.imageMode = 'trace';
+      draw.modeAuto = true;
+      $('imageMode').value = 'trace';
+      saveDrawSettings(draw);
+      applyModeVisibility();
+      updateLabels();
+    }
+  } else if (imageIsPhoto && draw.imageMode === 'trace') {
+    toast('This looks like a photo. Outline only keeps a few contours — try Sketch or Photo.', 'warn');
   }
   setImageThumb(image);
 }
