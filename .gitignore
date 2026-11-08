@@ -1,0 +1,14 @@
+# build output
+.build/
+*.hex
+
+# local editor / OS noise
+.vscode/
+.DS_Store
+Thumbs.db
+
+.vercel
+.env*
+
+node_modules/
+

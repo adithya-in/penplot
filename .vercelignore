@@ -1,0 +1,12 @@
+# Only the website itself is deployed. The firmware, build output and local
+# flashing/server scripts stay out of the Vercel upload.
+.build/
+firmware/
+flash.ps1
+flash.bat
+start.bat
+README.md
+.gitignore
+.vercel/
+.env*
+node_modules/

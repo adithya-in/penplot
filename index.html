@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PenPlot — image to drawing machine</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f1115'/%3E%3Cpath d='M8 24 L14 8 L18 18 L24 6' stroke='%2348be8c' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#141a20"/><path d="M7 24 L13 8 L17 18 L25 6" stroke="#48be8c" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div>
+        <h1>PenPlot</h1>
+        <p>image → g-code → paper</p>
+      </div>
+    </div>
+    <div class="conn" id="connWrap">
+      <span class="dot" id="connDot"></span>
+      <div class="conn-text">
+        <b id="connText">Not connected</b>
+        <small id="connDetail">Chrome / Edge · Web Serial</small>
+      </div>
+      <button class="btn primary" id="btnConnect">Connect Nano</button>
+      <button class="btn ghost hidden" id="btnDisconnect">Disconnect</button>
+    </div>
+    <button class="btn ghost" id="btnHelp">Help</button>
+  </header>
+
+  <div class="banner hidden" id="browserWarning">
+    This browser has no Web Serial support. Open this page in desktop <b>Chrome or Edge</b> over <b>HTTPS</b> or <code>localhost</code>.
+  </div>
+
+  <main class="app">
+    <!-- ───────────── left: source ───────────── -->
+    <aside class="panel left">
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="image">Image</button>
+        <button class="tab" data-tab="svg">SVG</button>
+        <button class="tab" data-tab="text">Text</button>
+      </div>
+
+      <div class="scroll">
+        <!-- image -->
+        <section class="pane" id="pane-image">
+          <div class="drop" id="dropImage" tabindex="0">
+            <input type="file" id="fileImage" accept="image/*" hidden>
+            <div class="drop-icon">🖼</div>
+            <b>Drop an image</b>
+            <span>or click to choose · PNG, JPG, WEBP</span>
+          </div>
+          <div class="row between">
+            <button class="btn tiny ghost" id="btnDemo">Load demo</button>
+            <span class="muted tiny" id="imgInfo">no image</span>
+          </div>
+
+          <label class="field">
+            <span>Mode</span>
+            <select id="imageMode">
+              <option value="trace">Outline — line art, logos</option>
+              <option value="scan">Scan lines — photos</option>
+              <option value="columns">Vertical hatch</option>
+              <option value="dots">Dots — stipple</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Width <b id="vImgWidth">100</b> mm</span>
+            <input type="range" id="imgWidth" min="10" max="150" step="1" value="100">
+          </label>
+
+          <label class="field">
+            <span>Threshold <b id="vThreshold">128</b></span>
+            <input type="range" id="threshold" min="0" max="255" step="1" value="128">
+          </label>
+
+          <label class="field">
+            <span>Blur <b id="vBlur">1</b></span>
+            <input type="range" id="blur" min="0" max="4" step="1" value="1">
+          </label>
+
+          <label class="field raster-only">
+            <span>Line spacing <b id="vSpacing">1.0</b> mm</span>
+            <input type="range" id="spacing" min="0.4" max="3" step="0.1" value="1">
+          </label>
+
+          <label class="field trace-only">
+            <span>Simplify <b id="vSimplify">0.20</b> mm</span>
+            <input type="range" id="simplify" min="0.05" max="1" step="0.05" value="0.2">
+          </label>
+
+          <label class="field raster-only">
+            <span>Bridge gaps <b id="vBridge">0</b> cells</span>
+            <input type="range" id="bridge" min="0" max="6" step="1" value="0">
+          </label>
+
+          <div class="checks">
+            <label><input type="checkbox" id="invert"> Invert</label>
+            <label class="raster-only"><input type="checkbox" id="dither"> Dither (photos)</label>
+            <label><input type="checkbox" id="autoDraw" checked> Draw after upload</label>
+          </div>
+
+          <div class="two">
+            <label class="field"><span>Offset X</span><input type="number" id="imgOffsetX" value="0" step="1"></label>
+            <label class="field"><span>Offset Y</span><input type="number" id="imgOffsetY" value="0" step="1"></label>
+          </div>
+        </section>
+
+        <!-- svg -->
+        <section class="pane hidden" id="pane-svg">
+          <div class="drop" id="dropSvg" tabindex="0">
+            <input type="file" id="fileSvg" accept=".svg,image/svg+xml" hidden>
+            <div class="drop-icon">✒️</div>
+            <b>Drop an SVG</b>
+            <span>or click to choose · Inkscape, Illustrator, Figma</span>
+          </div>
+          <div class="row between">
+            <span class="muted tiny" id="svgInfo">no file</span>
+          </div>
+
+          <label class="field">
+            <span>Width <b id="vSvgWidth">100</b> mm</span>
+            <input type="range" id="svgWidth" min="10" max="150" step="1" value="100">
+          </label>
+
+          <label class="field">
+            <span>Curve tolerance <b id="vSvgTol">0.15</b></span>
+            <input type="range" id="svgTol" min="0.02" max="1" step="0.01" value="0.15">
+          </label>
+
+          <div class="two">
+            <label class="field"><span>Offset X</span><input type="number" id="svgOffsetX" value="0" step="1"></label>
+            <label class="field"><span>Offset Y</span><input type="number" id="svgOffsetY" value="0" step="1"></label>
+          </div>
+
+          <p class="hint">Filled shapes are plotted as outlines. For a single-stroke look, export paths with strokes only.</p>
+        </section>
+
+        <!-- text -->
+        <section class="pane hidden" id="pane-text">
+          <label class="field">
+            <span>Text to write</span>
+            <textarea id="textInput" rows="4" spellcheck="false">HELLO</textarea>
+          </label>
+
+          <label class="field">
+            <span>Letter height <b id="vFontSize">12</b> mm</span>
+            <input type="range" id="fontSize" min="3" max="40" step="1" value="12">
+          </label>
+
+          <label class="field">
+            <span>Letter spacing <b id="vLetterSpace">1.2</b> mm</span>
+            <input type="range" id="letterSpace" min="-2" max="10" step="0.2" value="1.2">
+          </label>
+
+          <label class="field">
+            <span>Line spacing <b id="vLineSpace">1.7</b>×</span>
+            <input type="range" id="lineSpace" min="1.1" max="3" step="0.1" value="1.7">
+          </label>
+
+          <label class="field">
+            <span>Align</span>
+            <select id="textAlign">
+              <option value="left">Left</option>
+              <option value="center">Center</option>
+              <option value="right">Right</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Rotate <b id="vTextAngle">0</b>°</span>
+            <input type="range" id="textAngle" min="-45" max="45" step="1" value="0">
+          </label>
+
+          <div class="two">
+            <label class="field"><span>Offset X</span><input type="number" id="textOffsetX" value="10" step="1"></label>
+            <label class="field"><span>Offset Y (top)</span><input type="number" id="textOffsetY" value="40" step="1"></label>
+
+          </div>
+          <p class="hint" id="fontInfo">Single-stroke Hershey font — writes like a technical pen.</p>
+        </section>
+      </div>
+
+      <div class="genbar">
+        <button class="btn primary wide" id="btnGenerate">Regenerate toolpath</button>
+      </div>
+    </aside>
+
+    <!-- ───────────── centre: preview ───────────── -->
+    <section class="stage">
+      <div class="stage-head">
+        <div class="stats">
+          <div><span>paths</span><b id="statPaths">—</b></div>
+          <div><span>draw length</span><b id="statLength">—</b></div>
+          <div><span>pen lifts</span><b id="statLifts">—</b></div>
+          <div><span>estimated</span><b id="statTime">—</b></div>
+        </div>
+        <div class="bounds hidden" id="boundsWarn">⚠ outside the paper</div>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas id="preview"></canvas>
+        <div class="legend">
+          <span><i class="ink"></i>draw</span>
+          <span><i class="trav"></i>travel</span>
+        </div>
+      </div>
+
+      <div class="stage-foot">
+        <div class="progress-wrap">
+          <div class="progress"><div id="progressBar"></div></div>
+          <span id="progressText">idle</span>
+        </div>
+        <div class="actions">
+          <button class="btn ghost" id="btnSimulate">Simulate</button>
+          <button class="btn ghost" id="btnExport">Export .gcode</button>
+          <button class="btn danger hidden" id="btnStop">Stop</button>
+          <button class="btn warn hidden" id="btnPause">Pause</button>
+          <button class="btn primary" id="btnDraw" disabled>Draw</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────── right: machine ───────────── -->
+    <aside class="panel right">
+      <div class="scroll">
+        <section class="card">
+          <div class="card-head">
+            <h2>Machine</h2>
+            <span class="pill" id="machineState">Idle</span>
+          </div>
+
+          <div class="readout">
+            <div><span>X</span><b id="posX">0.00</b><em>mm</em></div>
+            <div><span>Y</span><b id="posY">0.00</b><em>mm</em></div>
+            <div><span>Z</span><b id="posZ">0.00</b><em>mm</em></div>
+          </div>
+
+          <div class="jog-grid">
+            <button class="jog" data-jog="Y+">Y+</button>
+            <button class="jog" data-jog="X-">X−</button>
+            <button class="jog" data-jog="Y-">Y−</button>
+            <button class="jog" data-jog="X+">X+</button>
+          </div>
+
+          <div class="row">
+            <select id="jogStep" class="compact">
+              <option value="0.1">0.1 mm</option>
+              <option value="1" selected>1 mm</option>
+              <option value="10">10 mm</option>
+              <option value="50">50 mm</option>
+            </select>
+            <button class="btn tiny" id="btnZero">Zero here</button>
+            <button class="btn tiny" id="btnUnlock">Unlock</button>
+            <button class="btn tiny" id="btnRefresh">↻</button>
+          </div>
+
+          <div class="row">
+            <button class="btn tiny" id="btnPenUp">Pen up</button>
+            <button class="btn tiny" id="btnPenDown">Pen down</button>
+            <button class="btn tiny" id="btnHome" title="Requires limit switches">Home</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2>Settings</h2>
+            <button class="btn tiny primary" id="btnApply">Apply</button>
+          </div>
+
+          <div class="settings-grid">
+            <label><span>Paper X</span><input type="number" id="setWorkX" value="150" step="1"></label>
+            <label><span>Paper Y</span><input type="number" id="setWorkY" value="150" step="1"></label>
+            <label><span>Steps/mm X</span><input type="number" id="setStepsX" value="51.2" step="0.01"></label>
+            <label><span>Steps/mm Y</span><input type="number" id="setStepsY" value="51.2" step="0.01"></label>
+            <label><span>Steps/mm Z</span><input type="number" id="setStepsZ" value="100" step="0.01"></label>
+            <label><span>Max rate X</span><input type="number" id="setRateX" value="300" step="10"></label>
+            <label><span>Max rate Y</span><input type="number" id="setRateY" value="300" step="10"></label>
+            <label><span>Accel X</span><input type="number" id="setAccelX" value="50" step="5"></label>
+            <label><span>Accel Y</span><input type="number" id="setAccelY" value="50" step="5"></label>
+            <label><span>Pen up Z</span><input type="number" id="setPenUp" value="5" step="0.5"></label>
+            <label><span>Pen down Z</span><input type="number" id="setPenDown" value="0" step="0.5"></label>
+            <label><span>Pen feed</span><input type="number" id="setPenFeed" value="200" step="10"></label>
+            <label><span>Draw feed</span><input type="number" id="setDrawFeed" value="250" step="10"></label>
+            <label><span>Travel feed</span><input type="number" id="setTravelFeed" value="300" step="10"></label>
+          </div>
+
+          <div class="checks">
+            <label><input type="checkbox" id="setKeepOn" checked> Hold motors</label>
+            <label><input type="checkbox" id="setSoftLimits"> Soft limits</label>
+            <label><input type="checkbox" id="setHoming"> Homing</label>
+          </div>
+
+          <div class="checks">
+            <label title="Reverse X: mirrors the drawing left/right"><input type="checkbox" id="setInvertX"> Invert X</label>
+            <label title="Reverse Y: flips the drawing upside down"><input type="checkbox" id="setInvertY"> Invert Y</label>
+            <label title="Reverse Z: reverses the pen lift"><input type="checkbox" id="setInvertZ"> Invert Z</label>
+          </div>
+          <p class="hint"><b>Invert Y is on by default</b> — this plotter's Y motor is mounted in reverse. Tick another axis only if it moves the wrong way, then press <b>Apply</b>. X flips left/right, Y flips up/down, Z reverses pen up/down.</p>
+
+          <div class="row">
+            <button class="btn tiny ghost" id="btnCalib">Calibration wizard</button>
+            <button class="btn tiny ghost" id="btnResetProfile">Reset profile</button>
+          </div>
+        </section>
+
+        <section class="card console-card">
+          <div class="card-head">
+            <h2>Console</h2>
+            <button class="btn tiny ghost" id="btnClearConsole">Clear</button>
+          </div>
+          <pre id="console" aria-live="polite"></pre>
+          <form id="cmdForm" class="cmd-form">
+            <input id="cmdInput" placeholder="e.g. $$ or ?" autocomplete="off">
+            <button class="btn tiny" type="submit">Send</button>
+          </form>
+        </section>
+      </div>
+    </aside>
+  </main>
+
+  <div id="toasts"></div>
+
+  <!-- help -->
+  <div class="modal hidden" id="modalHelp">
+    <div class="modal-card">
+      <div class="modal-head"><h2>Quick start</h2><button class="x" data-close="modalHelp">×</button></div>
+      <div class="modal-body">
+        <ol class="steps">
+          <li><b>Flash the Nano.</b> Run <code>flash.ps1</code> in the project folder (or double-click <code>flash.bat</code>). Choose the COM port when asked. The firmware is the GRBL 28BYJ-48 fork already configured for this plotter.</li>
+          <li><b>Wire the drivers.</b> X coils → D2–D5, Y coils → A0–A3, Z coils → D8, D9, D12, D13. Power the three ULN2003 boards from a separate <b>5 V ≥ 2 A</b> supply; join its ground to the Nano ground. Never power the motors from the Nano.</li>
+          <li><b>Connect & zero.</b> Tick “Always allow” when Chrome asks for the serial port. Jog the pen to the bottom-left corner of the paper and press <b>Zero here</b>.</li>
+          <li><b>Calibrate.</b> Use the calibration wizard: command 10 mm, measure the real move, and enter it. Then set pen down/up heights.</li>
+          <li><b>Draw.</b> Pick an image/SVG/text, press <b>Draw</b>. Start with something small — 28BYJ-48 motors are slow.</li>
+        </ol>
+        <div class="callout warn">
+          <b>Before the first run:</b> test with the pen lifted and your hand on the power switch. The stock machine has no limit switches, so the app clamps paths to the paper size instead.
+        </div>
+        <div class="callout">
+          GRBL settings can be changed live from the Settings card. <b>Apply</b> writes them to EEPROM. <code>$$</code> in the console shows the current values.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- calibration -->
+  <div class="modal hidden" id="modalCalib">
+    <div class="modal-card">
+      <div class="modal-head"><h2>Calibration</h2><button class="x" data-close="modalCalib">×</button></div>
+      <div class="modal-body">
+        <h3>1 · Steps per mm</h3>
+        <p class="muted">Jog exactly 10 mm on an axis. Measure the real distance the carriage moved, then enter it.</p>
+        <div class="cal-row">
+          <span>X — measured</span>
+          <input type="number" id="calMeasuredX" value="10" step="0.1">
+          <span>mm</span>
+          <button class="btn tiny" id="calApplyX">Apply X</button>
+        </div>
+        <div class="cal-row">
+          <span>Y — measured</span>
+          <input type="number" id="calMeasuredY" value="10" step="0.1">
+          <span>mm</span>
+          <button class="btn tiny" id="calApplyY">Apply Y</button>
+        </div>
+
+        <h3>2 · Pen height</h3>
+        <p class="muted">Jog Z until the pen just touches the paper, then capture it. Lift the pen and capture again.</p>
+        <div class="cal-row">
+          <span>Current Z</span><b id="calCurZ">—</b>
+          <button class="btn tiny" id="calDown">Capture as DOWN</button>
+          <button class="btn tiny" id="calUp">Capture as UP</button>
+        </div>
+
+        <h3>3 · Paper</h3>
+        <div class="cal-row">
+          <span>Width × height</span>
+          <input type="number" id="calWorkX" value="150" step="1">
+          <input type="number" id="calWorkY" value="150" step="1">
+          <button class="btn tiny" id="calSave">Save all</button>
+        </div>
+        <p class="hint">Values are stored locally. Press <b>Apply</b> in the Settings card to write them to the controller.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- confirm draw -->
+  <div class="modal hidden" id="modalConfirm">
+    <div class="modal-card">
+      <div class="modal-head"><h2>Start drawing?</h2><button class="x" data-close="modalConfirm">×</button></div>
+      <div class="modal-body">
+        <div id="confirmBody" class="confirm-body"></div>
+        <div class="callout warn">Make sure the pen is above the paper and the machine has room to move. This will move the motors.</div>
+        <div class="modal-actions">
+          <button class="btn ghost" id="btnCancelConfirm">Cancel</button>
+          <button class="btn primary" id="btnConfirmStart">Start drawing</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
