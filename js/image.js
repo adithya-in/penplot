@@ -65,6 +65,23 @@ export function autoLevels(gray, cutoff = 0.005) {
   return out;
 }
 
+/* Brightness / contrast / gamma, matching the order used by LaserWeb4 and
+ * LaserGRBL before thresholding. */
+export function applyTone(gray, { brightness = 0, contrast = 0, gamma = 1 } = {}) {
+  if (!brightness && !contrast && (!gamma || gamma === 1)) return gray;
+  const cf = contrast ? (259 * (contrast + 255)) / (255 * (259 - contrast)) : 1;
+  const invGamma = gamma && gamma !== 1 ? 1 / gamma : 1;
+  const out = new Float32Array(gray.length);
+  for (let i = 0; i < gray.length; i++) {
+    let v = gray[i] + brightness;
+    if (contrast) v = cf * (v - 128) + 128;
+    v = Math.max(0, Math.min(255, v));
+    if (invGamma !== 1) v = 255 * Math.pow(v / 255, invGamma);
+    out[i] = v;
+  }
+  return out;
+}
+
 /* Rough image classification used to choose a sensible conversion mode.
  * Photos and gradients contain many mid-grey pixels; logos and line art are
  * almost entirely black or white. */
@@ -116,14 +133,46 @@ export function boxBlur(gray, width, height, radius) {
   return out;
 }
 
+/* Remove isolated dark pixels (JPEG speckles) before contour tracing. */
+export function despeckle(mask, width, height) {
+  const out = mask.slice();
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = y * width + x;
+      if (!mask[i]) continue;
+      let n = 0;
+      if (x > 0 && mask[i - 1]) n++;
+      if (x + 1 < width && mask[i + 1]) n++;
+      if (y > 0 && mask[i - width]) n++;
+      if (y + 1 < height && mask[i + width]) n++;
+      if (n === 0) out[i] = 0;
+    }
+  }
+  return out;
+}
+
 /* threshold: 0..255. Higher values make more pixels dark (the intuitive
  * direction). The same offset is used as an exposure bias when dithering. */
-export function makeMask(gray, width, height, { threshold = 128, invert = false, dither = false } = {}) {
+export function makeMask(gray, width, height, { threshold = 128, invert = false, dither = false, ordered = false } = {}) {
   const bias = 128 - threshold;
   const buf = new Float32Array(gray.length);
   for (let i = 0; i < buf.length; i++) buf[i] = Math.max(0, Math.min(255, gray[i] + bias));
 
-  if (dither) {
+  if (ordered) {
+    const BAYER = [
+      [0, 8, 2, 10],
+      [12, 4, 14, 6],
+      [3, 11, 1, 9],
+      [15, 7, 13, 5]
+    ];
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = y * width + x;
+        const t = ((BAYER[y % 4][x % 4] + 0.5) / 16) * 255;
+        buf[i] = buf[i] < t ? 0 : 255;
+      }
+    }
+  } else if (dither) {
     for (let y = 0; y < height; y++) {
       const reverse = y % 2 === 1;
       for (let k = 0; k < width; k++) {
@@ -165,9 +214,12 @@ export function makeMask(gray, width, height, { threshold = 128, invert = false,
 export function rasterGrid(img, targetWidthMm, spacingMm, maxCells = 90000) {
   let w = Math.max(8, Math.round(targetWidthMm / Math.max(0.2, spacingMm)));
   let h = Math.max(8, Math.round((w * img.height) / img.width));
-  while (w * h > maxCells) {
-    w = Math.max(8, Math.round(w * 0.9));
-    h = Math.max(8, Math.round((w * img.height) / img.width));
+  // Scale both axes together. The old loop only shrank w, so an extreme
+  // aspect ratio could get stuck at w = 8 and spin forever.
+  if (w * h > maxCells) {
+    const s = Math.sqrt(maxCells / (w * h));
+    w = Math.max(8, Math.floor(w * s));
+    h = Math.max(8, Math.floor(h * s));
   }
   return { w, h, cell: targetWidthMm / w };
 }
@@ -189,13 +241,69 @@ function findRuns(isDark, length, bridge) {
   return runs;
 }
 
-export function rasterPaths(mask, width, height, cell, { mode = 'scan', bridge = 0, oneWay = false } = {}) {
+/* Link runs in adjacent rows/columns when their spans overlap. This is the
+ * same idea as GRBL-Plotter's DrawColorMap: keep the pen down and zig-zag
+ * through a solid area instead of lifting for every raster run. Overlap is
+ * required so the connector stays inside the dark area and does not smear
+ * dithered photos. */
+function linkRuns(groups) {
   const paths = [];
-  const yOf = (row) => (height - row - 0.5) * cell;
+  const used = groups.map((g) => g.map(() => false));
 
+  for (let g = 0; g < groups.length; g++) {
+    for (let i = 0; i < groups[g].length; i++) {
+      if (used[g][i]) continue;
+      const first = groups[g][i];
+      used[g][i] = true;
+      const pts = [first.p1, first.p2];
+      let cur = first.p2;
+      let span = first;
+      let gi = g;
+
+      while (gi + 1 < groups.length) {
+        const next = groups[gi + 1];
+        let best = -1;
+        let bestD = Infinity;
+        let bestFlip = false;
+
+        for (let j = 0; j < next.length; j++) {
+          if (used[gi + 1][j]) continue;
+          const n = next[j];
+          const overlap = Math.min(span.a2, n.a2) - Math.max(span.a1, n.a1);
+          const minW = Math.min(span.a2 - span.a1, n.a2 - n.a1);
+          if (overlap < minW * 0.5) continue;
+          const d1 = Math.hypot(n.p1.x - cur.x, n.p1.y - cur.y);
+          const d2 = Math.hypot(n.p2.x - cur.x, n.p2.y - cur.y);
+          if (Math.min(d1, d2) < bestD) {
+            bestD = Math.min(d1, d2);
+            best = j;
+            bestFlip = d2 < d1;
+          }
+        }
+
+        if (best < 0) break;
+        const n = next[best];
+        const start = bestFlip ? n.p2 : n.p1;
+        const end = bestFlip ? n.p1 : n.p2;
+        pts.push(start, end);
+        used[gi + 1][best] = true;
+        cur = end;
+        span = n;
+        gi++;
+      }
+
+      paths.push({ points: pts, closed: false });
+    }
+  }
+  return paths;
+}
+
+export function rasterPaths(mask, width, height, cell, { mode = 'scan', bridge = 0, oneWay = false } = {}) {
   if (mode === 'dots') {
     // Artistic stippling: one short vertical stroke per dark cell.
+    const paths = [];
     const len = Math.max(0.2, cell * 0.37);
+    const yOf = (row) => (height - row - 0.5) * cell;
     for (let row = 0; row < height; row++) {
       const y = yOf(row);
       const reverse = row % 2 === 1;
@@ -210,35 +318,42 @@ export function rasterPaths(mask, width, height, cell, { mode = 'scan', bridge =
   }
 
   if (mode === 'columns') {
+    const groups = [];
     for (let col = 0; col < width; col++) {
       const x = (col + 0.5) * cell;
       const reverse = !oneWay && col % 2 === 1;
       const runs = findRuns((row) => mask[row * width + col], height, bridge);
       if (reverse) runs.reverse();
-      for (const [a, b] of runs) {
+      groups.push(runs.map(([a, b]) => {
         const top = (height - a) * cell;
         const bottom = (height - b - 1) * cell;
-        const pts = reverse ? [{ x, y: bottom }, { x, y: top }] : [{ x, y: top }, { x, y: bottom }];
-        paths.push({ points: pts, closed: false });
-      }
+        const lo = Math.min(top, bottom);
+        const hi = Math.max(top, bottom);
+        return reverse
+          ? { p1: { x, y: bottom }, p2: { x, y: top }, a1: lo, a2: hi }
+          : { p1: { x, y: top }, p2: { x, y: bottom }, a1: lo, a2: hi };
+      }));
     }
-    return paths;
+    return linkRuns(groups);
   }
 
   // scan (default): horizontal rows
+  const groups = [];
+  const yOf = (row) => (height - row - 0.5) * cell;
   for (let row = 0; row < height; row++) {
     const y = yOf(row);
     const reverse = !oneWay && row % 2 === 1;
     const runs = findRuns((col) => mask[row * width + col], width, bridge);
     if (reverse) runs.reverse();
-    for (const [a, b] of runs) {
+    groups.push(runs.map(([a, b]) => {
       const x1 = a * cell;
       const x2 = (b + 1) * cell;
-      const pts = reverse ? [{ x: x2, y }, { x: x1, y }] : [{ x: x1, y }, { x: x2, y }];
-      paths.push({ points: pts, closed: false });
-    }
+      return reverse
+        ? { p1: { x: x2, y }, p2: { x: x1, y }, a1: x1, a2: x2 }
+        : { p1: { x: x1, y }, p2: { x: x2, y }, a1: x1, a2: x2 };
+    }));
   }
-  return paths;
+  return linkRuns(groups);
 }
 
 /* Vector outlines from a photo/logo. */
@@ -250,6 +365,9 @@ export function traceImage(img, opts) {
     invert = false,
     blur = 1,
     autoContrast = true,
+    brightness = 0,
+    contrast = 0,
+    gamma = 1,
     simplifyMm = 0.2
   } = opts;
 
@@ -258,14 +376,16 @@ export function traceImage(img, opts) {
   const h = Math.max(8, Math.round(img.height * scale));
   const { gray } = imageToGray(img, w, h);
   const leveled = autoContrast ? autoLevels(gray) : gray;
-  const blurred = boxBlur(leveled, w, h, blur);
+  const toned = applyTone(leveled, { brightness, contrast, gamma });
+  const blurred = boxBlur(toned, w, h, blur);
   const mask = makeMask(blurred, w, h, { threshold, invert, dither: false });
 
   const cell = targetWidthMm / w;
   const epsPx = Math.max(0.15, simplifyMm / cell);
-  // 3 px removes JPEG speckles and tiny isolated islands without losing
-  // normal line-art detail.
-  const raw = traceMask(mask, w, h, { simplify: epsPx, minLength: 3 });
+  // Remove isolated JPEG speckles before tracing; 3 px minimum length then
+  // removes the remaining tiny slivers.
+  const cleanMask = despeckle(mask, w, h);
+  const raw = traceMask(cleanMask, w, h, { simplify: epsPx, minLength: 3 });
 
   const paths = raw.map((p) => {
     let pts = p.points.map((pt) => ({ x: pt.x * cell, y: (h - pt.y) * cell }));
@@ -286,17 +406,22 @@ export function rasterizeImage(img, opts) {
     invert = false,
     blur = 1,
     dither = false,
+    ordered = false,
     bridge = 0,
     oneWay = false,
     autoContrast = true,
+    brightness = 0,
+    contrast = 0,
+    gamma = 1,
     maxCells = 90000
   } = opts;
 
   const { w, h, cell } = rasterGrid(img, targetWidthMm, spacingMm, maxCells);
   const { gray } = imageToGray(img, w, h);
   const leveled = autoContrast ? autoLevels(gray) : gray;
-  const blurred = boxBlur(leveled, w, h, blur);
-  const mask = makeMask(blurred, w, h, { threshold, invert, dither });
+  const toned = applyTone(leveled, { brightness, contrast, gamma });
+  const blurred = boxBlur(toned, w, h, blur);
+  const mask = makeMask(blurred, w, h, { threshold, invert, dither, ordered });
   const paths = rasterPaths(mask, w, h, cell, { mode, bridge, oneWay });
 
   return { paths, width: targetWidthMm, height: h * cell, cells: w * h, grid: { w, h, cell } };
@@ -317,6 +442,9 @@ export function squiggleImage(img, opts) {
     invert = false,
     blur = 1,
     autoContrast = true,
+    brightness = 0,
+    contrast = 0,
+    gamma = 1,
     maxPixels = 640
   } = opts;
 
@@ -325,7 +453,8 @@ export function squiggleImage(img, opts) {
   const h = Math.max(16, Math.round(img.height * scale));
   const { gray } = imageToGray(img, w, h);
   const leveled = autoContrast ? autoLevels(gray) : gray;
-  const blurred = boxBlur(leveled, w, h, blur);
+  const toned = applyTone(leveled, { brightness, contrast, gamma });
+  const blurred = boxBlur(toned, w, h, blur);
   const cell = targetWidthMm / w;
 
   const lineCount = Math.max(4, Math.round(lines));

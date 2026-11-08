@@ -274,7 +274,17 @@ Expect an artistic approximation, not a photocopy.
 - **Auto contrast** stretches a washed-out photo to the full black-to-white
   range. Keep it on for phone photos; turn it off if the original contrast is
   intentional.
+- **Brightness / Contrast / Gamma** apply before thresholding/dithering, the
+  same order LaserWeb4 and LaserGRBL use. Gamma is the most useful control for
+  lifting or deepening midtones.
 - **Dither** converts greys into a fine black/white pattern; leave it on for photos.
+- **Ordered** uses a regular Bayer 4×4 pattern instead of error diffusion. Try
+  it when Floyd–Steinberg looks too noisy.
+- In solid areas, adjacent raster runs that overlap are joined into one
+  zig-zag path (the same idea as GRBL-Plotter's fill). This greatly reduces pen
+  lifts and the blobs/backlash they cause.
+- Paths are **clipped** at the paper edge, not dragged along it. An oversized
+  image is cut off cleanly instead of drawing a border line.
 - **One-way scan** draws every row left-to-right instead of snaking. It is
   slower (the pen returns across the row) but removes the horizontal stripes
   caused by backlash in the 28BYJ gearboxes and belts.
@@ -506,6 +516,7 @@ Press **Unlock** first; then fix the setting that re-triggers it.
 | Photo looks like a mesh or scribble | Press **Photo** for the halftone version, or reduce **Lines**, **Wave amount** and **Detail** in **Sketch** mode. |
 | Rows are shifted or the image looks torn | Turn on **One-way scan**, lower draw feed/accel, and check belt tension and pulley set screws. 28BYJ gearboxes have backlash; serpentine rows exaggerate it. |
 | Image is too coarse / missing detail | Use a larger **Width**, `Line spacing` 0.6–0.8 mm, and **Dots** + **Dither**. Use a finer pen. |
+| Image extends beyond the paper | The app now clips the toolpath at the edge instead of dragging it along the border. Reduce **Width** or press **Center**. |
 | Image is not centred on the paper | Press **Center** in the Image tab. It fits the image inside the paper and sets both offsets. |
 | Text appears upside down or off the page | Text uses a top-left origin; increase `Offset Y (top)` and check rotation. |
 | Auto-draw starts before I am ready | Untick **Draw after upload**, or press **Cancel** during the 5-second countdown. |
@@ -578,4 +589,7 @@ The Hershey font data is public domain.
 
 The **Squiggle** and **Auto contrast** image algorithms are adapted from
 [mitxela/plotterfun](https://github.com/mitxela/plotterfun), which is MIT
-licensed. The rest of the web app is original for this project.
+licensed. The raster filter order (brightness/contrast/gamma) follows
+[LaserWeb4](https://github.com/LaserWeb/LaserWeb4), and the run-linking fill
+idea follows [GRBL-Plotter](https://github.com/svenhb/GRBL-Plotter). The rest of
+the web app is original for this project.

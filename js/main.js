@@ -1,6 +1,6 @@
 /* PenPlot — UI state machine.
  *
- * Flow: source (image / SVG / text) → stroke paths → clamped toolpath →
+ * Flow: source (image / SVG / text) → stroke paths → clipped toolpath →
  * G-code → Web Serial streaming to GRBL.
  *
  * Everything here is plain ES modules; there is no build step and no server
@@ -133,24 +133,81 @@ function translatePaths(paths, dx, dy) {
   }));
 }
 
-/* Keep every coordinate inside the paper rectangle. The stock machine has no
- * limit switches, so this is the safety net that stops a bad offset from
- * commanding an unbounded move. Returns changed=true when anything clipped. */
-function clampPaths(paths, work) {
+/* Liang-Barsky segment clip against the paper rectangle. Returns null when
+ * the segment is outside, otherwise the clipped endpoints. */
+function clipSegment(a, b, w, h) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  let t0 = 0;
+  let t1 = 1;
+  const p = [-dx, dx, -dy, dy];
+  const q = [a.x, w - a.x, a.y, h - a.y];
+  for (let i = 0; i < 4; i++) {
+    if (Math.abs(p[i]) < 1e-12) {
+      if (q[i] < 0) return null;
+    } else {
+      const r = q[i] / p[i];
+      if (p[i] < 0) {
+        if (r > t1) return null;
+        if (r > t0) t0 = r;
+      } else {
+        if (r < t0) return null;
+        if (r < t1) t1 = r;
+      }
+    }
+  }
+  return {
+    a: { x: a.x + t0 * dx, y: a.y + t0 * dy },
+    b: { x: a.x + t1 * dx, y: a.y + t1 * dy },
+    full: t0 === 0 && t1 === 1
+  };
+}
+
+/* Clip paths at the paper boundary instead of dragging every point onto the
+ * edge. Clamping used to create long lines along the paper border when an
+ * image was larger than the sheet. */
+function clipPaths(paths, work) {
   let changed = false;
-  const clamped = paths.map((path) => {
-    const points = path.points.map((p) => {
-      let x = p.x;
-      let y = p.y;
-      if (x < 0) { x = 0; changed = true; }
-      else if (x > work.x) { x = work.x; changed = true; }
-      if (y < 0) { y = 0; changed = true; }
-      else if (y > work.y) { y = work.y; changed = true; }
-      return { ...p, x, y };
-    });
-    return { ...path, points };
-  });
-  return { paths: clamped, changed };
+  const out = [];
+  const w = work.x;
+  const h = work.y;
+
+  for (const path of paths) {
+    let cur = [];
+    let pathClipped = false;
+    const flush = () => {
+      if (cur.length > 1) {
+        out.push({ ...path, closed: pathClipped ? false : path.closed, points: cur });
+      }
+      cur = [];
+    };
+
+    for (let i = 1; i < path.points.length; i++) {
+      const seg = clipSegment(path.points[i - 1], path.points[i], w, h);
+      if (!seg) {
+        flush();
+        continue;
+      }
+      if (!seg.full) {
+        changed = true;
+        pathClipped = true;
+      }
+      if (!cur.length) {
+        cur.push(seg.a);
+      } else {
+        const last = cur[cur.length - 1];
+        if (Math.hypot(last.x - seg.a.x, last.y - seg.a.y) > 1e-6) {
+          flush();
+          cur.push(seg.a);
+        }
+      }
+      cur.push(seg.b);
+      if (!seg.full) flush();
+    }
+    flush();
+  }
+
+  return { paths: out, changed };
 }
 
 /* ─────────────────────────── input binding ─────────────────────────── */
@@ -160,6 +217,9 @@ function syncDrawInputs() {
   $('imgWidth').value = draw.imgWidth;
   $('threshold').value = draw.threshold;
   $('blur').value = draw.blur;
+  $('brightness').value = draw.brightness;
+  $('contrast').value = draw.contrast;
+  $('gamma').value = draw.gamma;
   $('spacing').value = draw.spacing;
   $('simplify').value = draw.simplify;
   $('bridge').value = draw.bridge;
@@ -169,6 +229,7 @@ function syncDrawInputs() {
   $('invert').checked = Boolean(draw.invert);
   $('autoContrast').checked = draw.autoContrast !== false;
   $('dither').checked = Boolean(draw.dither);
+  $('ordered').checked = Boolean(draw.ordered);
   $('oneWay').checked = Boolean(draw.oneWay);
   $('autoDraw').checked = draw.autoDraw !== false;
   $('imgOffsetX').value = draw.imgOffsetX;
@@ -194,6 +255,9 @@ function readDrawInputs() {
   draw.imgWidth = clamp(numValue('imgWidth', 100), 10, profile.work.x);
   draw.threshold = clamp(numValue('threshold', 128), 0, 255);
   draw.blur = clamp(numValue('blur', 1), 0, 4);
+  draw.brightness = clamp(numValue('brightness', 0), -100, 100);
+  draw.contrast = clamp(numValue('contrast', 0), -100, 100);
+  draw.gamma = clamp(numValue('gamma', 1), 0.2, 3);
   draw.spacing = clamp(numValue('spacing', 1), 0.2, 5);
   draw.simplify = clamp(numValue('simplify', 0.2), 0.01, 3);
   draw.bridge = clamp(numValue('bridge', 0), 0, 10);
@@ -203,6 +267,7 @@ function readDrawInputs() {
   draw.invert = $('invert').checked;
   draw.autoContrast = $('autoContrast').checked;
   draw.dither = $('dither').checked;
+  draw.ordered = $('ordered').checked;
   draw.oneWay = $('oneWay').checked;
   draw.autoDraw = $('autoDraw').checked;
   draw.imgOffsetX = numValue('imgOffsetX', 0);
@@ -229,6 +294,9 @@ function updateLabels() {
   $('vImgWidth').textContent = draw.imgWidth;
   $('vThreshold').textContent = draw.threshold;
   $('vBlur').textContent = draw.blur;
+  $('vBrightness').textContent = draw.brightness;
+  $('vContrast').textContent = draw.contrast;
+  $('vGamma').textContent = Number(draw.gamma).toFixed(1);
   $('vSpacing').textContent = Number(draw.spacing).toFixed(1);
   $('vSimplify').textContent = Number(draw.simplify).toFixed(2);
   $('vBridge').textContent = draw.bridge;
@@ -265,12 +333,13 @@ function regenOn(id, eventName = 'input') {
 
 function bindDrawControls() {
   [
-    'imgWidth', 'threshold', 'blur', 'spacing', 'simplify', 'bridge',
+    'imgWidth', 'threshold', 'blur', 'brightness', 'contrast', 'gamma',
+    'spacing', 'simplify', 'bridge',
     'squiggleLines', 'squiggleAmount', 'squiggleDetail',
     'imgOffsetX', 'imgOffsetY'
   ].forEach((id) => regenOn(id));
 
-  ['invert', 'autoContrast', 'dither', 'oneWay'].forEach((id) => regenOn(id, 'change'));
+  ['invert', 'autoContrast', 'dither', 'ordered', 'oneWay'].forEach((id) => regenOn(id, 'change'));
   regenOn('imageMode', 'change');
 
   $('autoDraw').addEventListener('change', () => {
@@ -496,7 +565,10 @@ async function generate({ auto = false } = {}) {
         threshold: draw.threshold,
         invert: draw.invert,
         blur: draw.blur,
-        autoContrast: draw.autoContrast !== false
+        autoContrast: draw.autoContrast !== false,
+        brightness: draw.brightness,
+        contrast: draw.contrast,
+        gamma: draw.gamma
       };
       let result;
       if (draw.imageMode === 'trace') {
@@ -524,6 +596,7 @@ async function generate({ auto = false } = {}) {
           spacingMm: draw.spacing,
           mode: draw.imageMode,
           dither: draw.dither,
+          ordered: draw.ordered,
           bridge: draw.bridge,
           oneWay: draw.oneWay
         });
@@ -609,7 +682,7 @@ async function generate({ auto = false } = {}) {
   }
 
   const rawCheck = checkBounds(rawPaths, profile);
-  const paper = clampPaths(rawPaths, profile.work);
+  const paper = clipPaths(rawPaths, profile.work);
   let paths = cleanPaths(paper.paths);
 
   // Clamping can collapse paths that were entirely outside the paper.
@@ -627,7 +700,7 @@ async function generate({ auto = false } = {}) {
   }
 
   const issues = rawCheck.issues.slice();
-  if (paper.changed) issues.unshift('Toolpath was clamped to the paper edge');
+  if (paper.changed) issues.unshift('Toolpath was clipped to the paper edge');
 
   let gcode;
   try {
@@ -783,12 +856,14 @@ function setImageThumb(image) {
 function applyHalftonePreset() {
   draw.imageMode = 'scan';
   draw.dither = true;
+  draw.ordered = false;
   draw.spacing = 0.8;
   draw.bridge = 1;
   draw.threshold = 128;
   draw.oneWay = true;
   $('imageMode').value = 'scan';
   $('dither').checked = true;
+  $('ordered').checked = false;
   $('spacing').value = 0.8;
   $('bridge').value = 1;
   $('threshold').value = 128;
@@ -1089,7 +1164,7 @@ async function startDrawing() {
   // Re-check against the current paper size one last time. This catches the
   // case where the user edited Settings after generating the toolpath.
   readProfileInputs();
-  const clamped = clampPaths(state.paths, profile.work);
+  const clamped = clipPaths(state.paths, profile.work);
   if (clamped.changed) {
     const next = cleanPaths(clamped.paths).filter((p) => p.points.length > 1);
     if (!next.length) {
@@ -1102,7 +1177,7 @@ async function startDrawing() {
     state.stats = state.gcode.stats;
     preview.setData(next, profile);
     updateStats(state.stats);
-    toast('Toolpath clamped to the new paper size.', 'warn');
+    toast('Toolpath clipped to the new paper size.', 'warn');
   } else {
     rebuildCurrent();
   }

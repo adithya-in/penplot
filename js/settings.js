@@ -34,7 +34,11 @@ export const DRAW_DEFAULTS = {
   invert: false,
   blur: 1,
   autoContrast: true,  // stretch the histogram before thresholding
+  brightness: 0,       // -100..100
+  contrast: 0,         // -100..100
+  gamma: 1,            // 0.2..3 (1 = neutral)
   dither: false,
+  ordered: false,
   spacing: 1.0,         // mm between raster lines
   simplify: 0.2,        // mm
   bridge: 0,            // merge gaps up to N cells
