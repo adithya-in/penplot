@@ -280,6 +280,10 @@ input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px;
 .legend i { width: 14px; height: 2px; border-radius: 2px; display: inline-block; }
 .legend .ink { background: #e7ecf3; }
 .legend .trav { background: repeating-linear-gradient(90deg, var(--blue) 0 3px, transparent 3px 6px); }
+.legend .mach {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #ef7d2a; box-shadow: 0 0 0 2px rgba(239, 125, 42, 0.25);
+}
 
 .stage-foot {
   display: flex;

@@ -405,6 +405,10 @@ buzz, lower the feed and acceleration.
 - **Export .gcode** downloads the generated program.
 - **Stop** aborts the stream, soft-resets the controller and lifts the pen.
 - **Pause / Resume** sends GRBL feed-hold (`!`) and cycle-start (`~`).
+- The orange crosshair in the preview is the **live machine position** in work
+  coordinates (`WPos`). It updates while jogging and while drawing. If the
+  machine is outside the paper, the marker is pinned to the edge with an arrow
+  and shows its real coordinates.
 
 The **Console** accepts any GRBL command: `?`, `$$`, `$#`, `$G`, `$X`, `$H`,
 `G0 X10`, etc. Multi-line replies (`$$`, `$#`, `$I`, `$G`) are collected and

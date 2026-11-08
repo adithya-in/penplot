@@ -230,15 +230,71 @@ export class Preview {
 
   _drawMachine(ctx) {
     if (!this.machine) return;
-    const x = this.tx(this.machine.x);
-    const y = this.ty(this.machine.y);
+    const work = this.profile?.work || { x: 150, y: 150 };
+    const m = this.machine;
+    const inX = m.x >= 0 && m.x <= work.x;
+    const inY = m.y >= 0 && m.y <= work.y;
+    const offPaper = !inX || !inY;
+
+    const pad = 9;
+    const xMin = this.tx(0) + pad;
+    const xMax = this.tx(work.x) - pad;
+    const yMin = this.ty(work.y) + pad;
+    const yMax = this.ty(0) - pad;
+    const x = Math.min(xMax, Math.max(xMin, this.tx(m.x)));
+    const y = Math.min(yMax, Math.max(yMin, this.ty(m.y)));
+
     ctx.save();
-    ctx.strokeStyle = 'rgba(230, 120, 60, 0.85)';
-    ctx.lineWidth = 1.4;
+    // White halo keeps the marker visible on top of a dark image.
     ctx.beginPath();
-    ctx.moveTo(x - 6, y); ctx.lineTo(x + 6, y);
-    ctx.moveTo(x, y - 6); ctx.lineTo(x, y + 6);
+    ctx.arc(x, y, 8.5, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(x, y, 4.2, 0, Math.PI * 2);
+    ctx.fillStyle = '#ef7d2a';
+    ctx.fill();
+
+    ctx.strokeStyle = '#ef7d2a';
+    ctx.lineWidth = 1.6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x - 8, y); ctx.lineTo(x - 5, y);
+    ctx.moveTo(x + 5, y); ctx.lineTo(x + 8, y);
+    ctx.moveTo(x, y - 8); ctx.lineTo(x, y - 5);
+    ctx.moveTo(x, y + 5); ctx.lineTo(x, y + 8);
     ctx.stroke();
+
+    if (offPaper) {
+      // Point towards the real (off-paper) position.
+      const angle = Math.atan2(this.ty(m.y) - y, this.tx(m.x) - x);
+      const tipX = x + Math.cos(angle) * 13;
+      const tipY = y + Math.sin(angle) * 13;
+      ctx.beginPath();
+      ctx.moveTo(tipX, tipY);
+      ctx.lineTo(x + Math.cos(angle + 2.5) * 6, y + Math.sin(angle + 2.5) * 6);
+      ctx.lineTo(x + Math.cos(angle - 2.5) * 6, y + Math.sin(angle - 2.5) * 6);
+      ctx.closePath();
+      ctx.fillStyle = '#ef7d2a';
+      ctx.fill();
+    }
+
+    // Small coordinate tag so the moving marker is unmistakable.
+    const label = `${m.x.toFixed(1)}, ${m.y.toFixed(1)}`;
+    ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
+    const tw = ctx.measureText(label).width;
+    let lx = x + 12;
+    let ly = y - 10;
+    if (lx + tw + 8 > this.w - 4) lx = x - tw - 20;
+    if (ly - 12 < 4) ly = y + 20;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.fillRect(lx - 4, ly - 10, tw + 8, 14);
+    ctx.strokeStyle = 'rgba(239, 125, 42, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(lx - 4, ly - 10, tw + 8, 14);
+    ctx.fillStyle = '#b45309';
+    ctx.fillText(label, lx, ly);
     ctx.restore();
   }
 
