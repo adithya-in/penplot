@@ -445,8 +445,10 @@ buzz, lower the feed and acceleration.
 ## 8. Machine controls and console
 
 - **Jog arrows** move X/Y by the selected step (0.1, 1, 10 or 50 mm) at
-  **Jog feed** (600 mm/min by default). GRBL caps this at **Max rate X/Y**;
-  both are in Settings and need **Apply** to reach the controller.
+  **Jog feed** (600 mm/min by default). **Hold** an arrow for continuous
+  movement and release to stop; a quick tap moves one step. GRBL caps this at
+  **Max rate X/Y**; both are in Settings and need **Apply** to reach the
+  controller.
 - **Zero here** sets the work origin (`G10 L20 P1 X0 Y0 Z0`).
 - **Unlock** clears a GRBL alarm (`$X`).
 - **Pen up / Pen down** move Z to the configured heights.

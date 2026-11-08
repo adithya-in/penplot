@@ -60,6 +60,7 @@ let svgName = '';
 let genTimer = null;
 let countdownTimer = null;
 let simResetTimer = null;
+let jogPress = null;
 
 const MAX_CONSOLE_LINES = 400;
 const logEl = $('console');
@@ -1397,7 +1398,7 @@ function setConnectedUI(connected) {
 function updateMachineControls() {
   const busy = state.machineBusy || ['Run', 'Jog', 'Home'].includes(serial.state);
   const on = serial.connected && !state.streaming && !busy;
-  $$('.jog').forEach((btn) => { btn.disabled = !on; });
+  $$('.jog').forEach((btn) => { btn.disabled = !on && !btn.classList.contains('active-jog'); });
   ['btnZero', 'btnRefresh', 'btnPenUp', 'btnPenDown', 'btnHome', 'btnApply'].forEach((id) => {
     $(id).disabled = !on;
   });
@@ -1446,12 +1447,29 @@ function wireSerial() {
   serial.addEventListener('connected', () => {
     setConnectedUI(true);
     logLine('[connected] Web Serial open at 115200', 'ok');
-    // Ask for build info; harmless if this fork does not implement $I.
+    // Ask for build info and seed the work-coordinate offset. The status
+    // report only includes WCO every 10-30 polls; without this seed the live
+    // marker can jump to machine coordinates right after connecting.
     setTimeout(async () => {
       if (!serial.connected) return;
       try {
         await serial.collect('$I', 4000);
       } catch { /* optional */ }
+      try {
+        const lines = await serial.collect('$#', 4000);
+        const wco = [0, 0, 0];
+        let found = false;
+        for (const line of lines) {
+          const m = line.match(/\[(G54|G92):([^\]]+)\]/);
+          if (!m) continue;
+          const vals = m[2].split(',').map(Number);
+          if (vals.length === 3 && vals.every(Number.isFinite)) {
+            vals.forEach((v, i) => { wco[i] += v; });
+            found = true;
+          }
+        }
+        if (found) serial.wco = wco;
+      } catch { /* older firmware */ }
     }, 600);
   });
 
@@ -1603,12 +1621,78 @@ async function jog(axis, direction) {
 }
 
 function wireMachine() {
+  const JOG_HOLD_MS = 220;
+
+  async function startContinuousJog(press) {
+    if (jogPress !== press || !serial.connected) return;
+    press.active = true;
+    state.machineBusy = true;
+    press.btn.classList.add('active-jog');
+    updateMachineControls();
+    const dir = press.sign === '+' ? 1 : -1;
+    const dist = (press.axis === 'X' ? profile.travel.x : profile.travel.y) * dir;
+    const axisMax = press.axis === 'X' ? profile.maxRate.x : profile.maxRate.y;
+    const feed = Math.max(1, Math.min(profile.feed.jog || 600, axisMax));
+    try {
+      await serial.sendLine(`$J=G91 ${press.axis}${dist.toFixed(3)} F${feed.toFixed(0)}`, 30000);
+    } catch (err) {
+      toast(`Jog failed: ${err.message}`, 'err');
+      endJogPress();
+    }
+  }
+
+  function endJogPress() {
+    const press = jogPress;
+    if (!press) return;
+    jogPress = null;
+    if (press.timer) clearTimeout(press.timer);
+    press.btn.classList.remove('active-jog');
+    if (press.active) {
+      // Stop the long $J jog; GRBL decelerates to a stop.
+      serial.jogCancel().catch(() => {});
+      state.machineBusy = false;
+      updateMachineControls();
+    } else {
+      // Quick tap: move exactly the selected step.
+      jog(press.axis, press.sign);
+    }
+  }
+
   $$('.jog').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const [axis, sign] = btn.dataset.jog;
-      jog(axis, sign);
+    btn.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      if (!serial.connected) { toast('Connect the Nano first.', 'warn'); return; }
+      if (state.streaming) { toast('Stop the drawing first.', 'warn'); return; }
+      if (serial.state === 'Alarm') { toast('The controller is in ALARM. Press Unlock first.', 'err'); return; }
+      if (state.machineBusy || serial.busy) { toast('Wait for the current move to finish.', 'warn'); return; }
+      try { btn.setPointerCapture(event.pointerId); } catch { /* ignore */ }
+      const press = {
+        btn,
+        axis: btn.dataset.jog[0],
+        sign: btn.dataset.jog[1],
+        pointerId: event.pointerId,
+        active: false,
+        timer: null
+      };
+      press.timer = setTimeout(() => startContinuousJog(press), JOG_HOLD_MS);
+      jogPress = press;
+    });
+
+    btn.addEventListener('pointerup', endJogPress);
+    btn.addEventListener('pointercancel', endJogPress);
+    btn.addEventListener('contextmenu', (event) => event.preventDefault());
+    // Keyboard activation (Enter/Space) produces a click with detail 0.
+    btn.addEventListener('click', (event) => {
+      if (event.detail === 0 && !jogPress) {
+        jog(btn.dataset.jog[0], btn.dataset.jog[1]);
+      }
     });
   });
+
+  // Release outside the button must still stop a held jog.
+  window.addEventListener('pointerup', endJogPress);
+  window.addEventListener('blur', endJogPress);
 
   $('btnZero').addEventListener('click', () => withSerial('Zero failed', async () => {
     await GRBL.zeroAll(serial);

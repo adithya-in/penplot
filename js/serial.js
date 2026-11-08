@@ -44,6 +44,7 @@ export class GrblSerial extends EventTarget {
     this.connected = false;
     this.state = 'Disconnected';
     this.lastStatus = null;
+    this.wco = null;             // last reported work coordinate offset
     this._pending = null;        // { resolve, reject, timer }
     this._collector = null;      // { lines } while collecting a multi-line response
     this._statusTimer = null;
@@ -115,6 +116,9 @@ export class GrblSerial extends EventTarget {
     this.buffer = '';
     this._closing = false;
     this._abort = false;
+    this.wco = null;
+    this.lastStatus = null;
+    this.state = 'Idle';
     try {
       localStorage.setItem('plotter.port.v1', JSON.stringify(port.getInfo ? port.getInfo() : {}));
     } catch { /* ignore */ }
@@ -150,6 +154,13 @@ export class GrblSerial extends EventTarget {
   _handleLine(line) {
     if (line.startsWith('<')) {
       const st = parseStatus(line);
+      // GRBL only includes WCO every 10-30 status reports. Cache the last
+      // value so the displayed work position and the live marker do not jump
+      // back to machine coordinates on reports without WCO.
+      if (st.wco) this.wco = st.wco;
+      if (!st.wpos && st.mpos && this.wco) {
+        st.wpos = st.mpos.map((v, i) => v - this.wco[i]);
+      }
       this.lastStatus = st;
       this.state = st.state;
       this.dispatchEvent(new CustomEvent('status', { detail: st }));
@@ -290,6 +301,11 @@ export class GrblSerial extends EventTarget {
     return this.writeRaw('~');
   }
 
+  /* GRBL realtime jog cancel (0x85). Stops a held $J jog and decelerates. */
+  jogCancel() {
+    return this.writeRaw(String.fromCharCode(0x85));
+  }
+
   reset() {
     return this.writeRaw(String.fromCharCode(0x18));
   }
@@ -325,6 +341,8 @@ export class GrblSerial extends EventTarget {
     this.reader = null;
     this.writer = null;
     this.port = null;
+    this.wco = null;
+    this.lastStatus = null;
     this._reject(new Error(reason));
     this.dispatchEvent(new CustomEvent('disconnected', { detail: reason }));
   }
