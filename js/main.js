@@ -797,13 +797,16 @@ function updateBounds(issues) {
 
 function updateDrawButton() {
   const ready = state.paths.length > 0 && Boolean(state.gcode) && !state.generating && !state.streaming;
+  const moving = state.machineBusy || ['Run', 'Jog', 'Home'].includes(serial.state);
   const btn = $('btnDraw');
-  btn.disabled = !ready || !serial.connected;
+  btn.disabled = !ready || !serial.connected || moving;
   btn.title = !serial.connected
     ? 'Connect the Nano to draw'
+    : moving ? 'Wait for the current movement to stop'
     : ready ? 'Start drawing' : 'Generate a toolpath first';
 
   $('btnExport').disabled = !state.paths.length || state.streaming;
+  $('btnExportSvg').disabled = !state.paths.length || state.streaming;
   $('btnSimulate').disabled = !state.paths.length || state.streaming;
   $('btnGenerate').disabled = state.streaming;
 }
@@ -1185,13 +1188,16 @@ async function startDrawing() {
   }
   if (state.streaming || !state.paths.length || !state.gcode) return;
 
-  // If the connect-time $I query or a jog is still waiting for its "ok",
-  // starting now would collide and the first streamed line would fail.
-  if (serial.busy || ['Run', 'Jog', 'Home'].includes(serial.state)) {
-    setProgress(0, 'waiting for controller…');
+  // If a connect query or a jog is still active, stop it and wait for Idle.
+  // Starting a job while GRBL is in Jog/Hold returns error:9 and leaves the
+  // pen doing a short repeated wiggle instead of drawing the job.
+  if (state.machineBusy || serial.busy || ['Run', 'Jog', 'Home'].includes(serial.state)) {
+    setProgress(0, 'stopping movement…');
+    try { await serial.jogCancel(); } catch { /* not jogging */ }
+    state.machineBusy = false;
     if (!(await waitForIdle(10000))) {
       setProgress(0, 'idle');
-      toast('The controller is busy. Try drawing again in a moment.', 'warn');
+      toast('The controller is still moving. Release the jog button and try again.', 'warn');
       return;
     }
   }
@@ -1288,6 +1294,7 @@ function setDrawingUI(active) {
   $('btnPause').textContent = 'Pause';
   $('btnSimulate').disabled = active || !state.paths.length;
   $('btnExport').disabled = active || !state.paths.length;
+  $('btnExportSvg').disabled = active || !state.paths.length;
   $('btnGenerate').disabled = active;
   $$('.tab').forEach((tab) => { tab.disabled = active; });
   updateMachineControls();
@@ -1378,6 +1385,37 @@ function toggleSimulation() {
   toast('Simulation only — the motors stay still.');
 }
 
+function exportSvg() {
+  if (!state.paths.length) {
+    toast('Generate a toolpath first.', 'warn');
+    return;
+  }
+  const work = profile.work;
+  const f = (n) => Number(n).toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+  let d = '';
+  for (const path of state.paths) {
+    const pts = path.points;
+    if (!pts.length) continue;
+    d += `M${f(pts[0].x)} ${f(work.y - pts[0].y)}`;
+    for (let i = 1; i < pts.length; i++) {
+      d += `L${f(pts[i].x)} ${f(work.y - pts[i].y)}`;
+    }
+  }
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${work.x}mm" height="${work.y}mm" viewBox="0 0 ${work.x} ${work.y}">
+<path d="${d}" fill="none" stroke="#000" stroke-width="0.25" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+`;
+  const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'penplot.svg';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  toast('SVG exported. Open it in jscut.org, Inkscape or another CAM tool.');
+}
+
 function exportGcode() {
   if (!state.gcode) {
     toast('Generate a toolpath first.', 'warn');
@@ -1426,6 +1464,7 @@ function updateMachineControls() {
   $('cmdInput').disabled = !on;
   const send = $('cmdForm').querySelector('button');
   if (send) send.disabled = !on;
+  updateDrawButton();
 }
 
 function setConnecting(on) {
@@ -1754,6 +1793,7 @@ function wireMachine() {
   });
 
   $('btnSimulate').addEventListener('click', toggleSimulation);
+  $('btnExportSvg').addEventListener('click', exportSvg);
   $('btnExport').addEventListener('click', exportGcode);
   $('btnGenerate').addEventListener('click', () => generate());
 }
