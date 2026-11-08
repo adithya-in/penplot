@@ -212,17 +212,37 @@ scripts and the README are excluded by `.vercelignore` and are not uploaded.
    **Y inversion** (`$3=2`), to the controller's EEPROM. Keep **Invert Y**
    ticked — the Y motor on this plotter is mounted in reverse.
 3. Jog X/Y with the arrows until the pen is over the **bottom-left corner** of
-   the paper. Use the 10 mm step first, then 1 mm.
-4. Jog Z until the pen just touches the paper, then use
-   **Calibration wizard → Capture as DOWN**. Lift the pen a few millimetres and
-   press **Capture as UP**.
-5. Press **Zero here** to call the current position X0 Y0 Z0.
-6. Load an image (or the demo), check the preview, and press **Draw**. Confirm
-   the dialog. Start with a small, simple drawing and a low draw feed.
+   the drawing area. Use the 10 mm step first, then 1 mm.
+4. Jog Z down until the pen **just touches** the paper.
+5. Press **Zero here**. This sets the work origin to `X0 Y0 Z0` at the paper
+   corner and the touch point. The X/Y/Z boxes now show **work coordinates**,
+   so they read `0.00` after zeroing.
+6. Set **Pen down Z = 0** and **Pen up Z = 3–5 mm** (or use
+   **Calibration wizard** now: *Capture as DOWN* reads 0, lift, *Capture as
+   UP*). Press **Apply**.
+7. Load an image (or the demo), press **Center**, check the preview, and press
+   **Draw**. Start with a small, simple drawing and a low draw feed.
 
 The machine has no limit switches. The app prevents coordinates outside the
 paper rectangle by clamping them, but it cannot know where the physical carriage
 is until you zero it at a known corner.
+
+### Setting 0,0 without homing
+
+There is no `$H` homing cycle on this plotter. **0,0 is wherever you put the
+pen and press Zero here** — normally the bottom-left corner of the drawing
+area. The app's coordinate display is **WPos** (work position), not the
+controller's internal machine position.
+
+- **Make a physical corner stop.** Tape two thin strips (or a printed L-bracket)
+  at the bottom-left of the paper area. Each session, push the carriage gently
+  into the stop, then press **Zero here**. This is your repeatable "home".
+- **Re-zero after every power cycle or USB reconnect.** GRBL has no absolute
+  position sensor; on boot it assumes machine position 0 wherever the carriage
+  happens to be. The saved work offset is kept in EEPROM, but it cannot restore
+  the physical corner.
+- The **Home** button is intentionally blocked because homing is disabled and
+  there are no switches. Do not send `$H`.
 
 ---
 
@@ -313,11 +333,32 @@ The right-hand **Settings** card holds the machine profile:
 
 ### Calibrating steps/mm
 
-1. Mark a start point on the carriage.
-2. Jog **exactly 10 mm** on X (or Y).
+The most accurate method uses a long move in the Console. The wizard uses a
+10 mm move, which magnifies measurement error.
+
+1. Mark a start point on the carriage or belt.
+2. With the pen **up**, zero X (or note the current X) and send:
+
+   ```gcode
+   G21 G90
+   G1 X100 F300
+   ```
+
 3. Measure the real distance travelled.
-4. Enter the measured value in the wizard and press **Apply X/Y**.
-5. Repeat, then press **Settings → Apply** to store it in the Nano.
+4. Calculate:
+
+   ```
+   new steps/mm = old steps/mm × 100 ÷ measured
+   ```
+
+   Example: `51.2 × 100 ÷ 98.0 = 52.24`.
+5. Enter the result in **Steps/mm X**, press **Apply**, and repeat for Y with
+   `G1 Y100 F300`.
+6. For Z, command `G1 Z10 F100`, measure the lift, and use the same formula
+   with `Steps/mm Z`.
+
+The wizard does the same calculation for a 10 mm move: jog exactly 10 mm,
+measure it, enter the measured value, and press **Apply X/Y**.
 
 The 51.2 steps/mm default corresponds to roughly 4096 half-steps per output
 revolution over 80 mm of belt travel. Your pulley, belt and motor may differ —
@@ -325,11 +366,19 @@ always calibrate.
 
 ### Pen height
 
+Zero the machine at the **touch point** first (see the first-run workflow), then:
+
+- **Pen down Z = 0** — the tip just touches the paper.
+- **Pen up Z = 3–5 mm** — enough to clear the paper during travel.
+
+Alternatively, with the pen touching, open **Calibration wizard → Capture as
+DOWN** (the box now shows work Z `0.00`), lift the pen a few millimetres, then
+**Capture as UP**. Press **Apply** to store it.
+
 The pen must be **up** for every travel move and **down** only while drawing.
-Set `Pen down Z` so the tip just touches the paper, and `Pen up Z` a few
-millimetres above it, then verify with **Pen up** / **Pen down** and a manual
-lift. If Z moves the wrong way or the pen drags, fix the direction mask or the
-Z steps/mm before drawing anything large.
+Verify with **Pen up** / **Pen down**. If Z moves the wrong way, tick **Invert
+Z** and press **Apply**. If the pen presses too hard or misses lines, adjust
+**Pen down Z** by 0.1–0.2 mm.
 
 ### Suggested conservative first run
 
@@ -361,6 +410,38 @@ The **Console** accepts any GRBL command: `?`, `$$`, `$#`, `$G`, `$X`, `$H`,
 `G0 X10`, etc. Multi-line replies (`$$`, `$#`, `$I`, `$G`) are collected and
 logged. Do not send a reset (`Ctrl-X`) while streaming; use the Stop button.
 
+### Alarms
+
+**ALARM** is GRBL's safety lock, not a fault in the app. GRBL enters it when a
+hard limit is hit (if enabled), a soft limit is exceeded, homing fails, a probe
+fails, or a reset happens during homing. While the lock is active, normal
+G-code is refused with `error:9`.
+
+This plotter has **no limit switches**, so the alarm sources must stay off:
+
+| Setting | Value | Why |
+| --- | --- | --- |
+| Soft limits `$20` | `0` | A move outside 0–150 mm would alarm |
+| Hard limits `$21` | `0` | Floating limit pins would alarm constantly |
+| Homing `$22` | `0` | There are no switches to home against |
+
+In the app, untick **Soft limits** and **Homing** in Settings and press
+**Apply**. Then press **Unlock** (sends `$X`) to clear the alarm.
+
+If the alarm returns immediately:
+
+- Send `$$` in the Console and check that `$20=0`, `$21=0`, `$22=0`.
+- Send `?` to see the machine state and `Pn:` field. `Pn:PXYZ` by itself is
+  just the (unused) pin states — it is not an alarm.
+- Stay inside `0…150 mm` in X/Y and `0…15 mm` in Z. The app clamps toolpaths,
+  but manual Console moves are not clamped.
+- Do not type G-code while a jog is moving; wait for **Idle**.
+- After a power glitch or a reset during a move, press **Unlock** and zero
+  again at the paper corner.
+
+The red **ALARM** pill and the toast in the app mean the controller is locked.
+Press **Unlock** first; then fix the setting that re-triggers it.
+
 ---
 
 ## 9. Troubleshooting
@@ -373,7 +454,8 @@ logged. Do not send a reset (`Ctrl-X`) while streaming; use the Stop button.
 | GRBL banner appears but motors do not move | Press **Settings → Apply** to write steps/mm and rates. Check the common ground and the external 5 V supply. |
 | **Draw** does nothing or stops immediately | Reload the page after flashing (Ctrl+Shift+R) and reconnect. The app is now built so this cannot collide with the connect-time `$I` query — wait for the green **Idle** pill, then press Draw. If it still stops, the Console now shows the failing G-code line and error. |
 | Browser says Connected but the board ignores everything | After a flash the COM port was reopened by avrdude. Click **Disconnect**, then **Connect Nano** again, or reload the page. |
-| `error:9` / alarm on connect | The controller is in an alarm state. Press **Unlock** (`$X`). Homing/soft limits should stay off. |
+| `error:9` / alarm on connect | The controller is in an alarm state. Press **Unlock** (`$X`). Then untick **Soft limits** and **Homing** and press **Apply**; homing/soft limits must stay off on this plotter. |
+| ALARM comes back after Unlock | Send `$$` and confirm `$20=0`, `$21=0`, `$22=0`. Also check that the move is inside 0–150 mm X/Y and 0–15 mm Z. `Pn:PXYZ` alone is not an alarm. |
 | Motors buzz but do not turn | Coil order or a loose ULN2003 connector. Verify X D2–D5, Y A0–A3, Z D8,D9,D12,D13. Reduce feed/accel. |
 | Axis moves the wrong direction | Tick the axis under **Settings → Invert X/Y/Z** and press **Apply** (`$3=1` X, `2` Y, `4` Z), or flip the motor connector. |
 | Drawing is mirrored / upside down | The machine origin is the **bottom-left** corner. Zero there. Y is inverted by default (`$3=2`) for this plotter — do not untick **Invert Y** unless your Y motor is mounted the other way. |

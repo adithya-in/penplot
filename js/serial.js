@@ -22,6 +22,13 @@ function parseStatus(line) {
   };
   out.mpos = vec('MPos');
   out.wpos = vec('WPos');
+  out.wco = vec('WCO');
+  // GRBL's status report usually contains MPos and WCO (work coordinate
+  // offset). Work position is MPos - WCO. Prefer a real WPos field if the
+  // controller was configured to report it.
+  if (!out.wpos && out.mpos && out.wco) {
+    out.wpos = out.mpos.map((v, i) => v - out.wco[i]);
+  }
   if (out.fields.FS) out.fs = out.fields.FS.split(',').map(Number);
   return out;
 }

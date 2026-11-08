@@ -47,7 +47,8 @@ const state = {
   streaming: false,
   paused: false,
   connected: false,
-  machineBusy: false
+  machineBusy: false,
+  alarmNotified: false
 };
 
 let imageEl = null;
@@ -1256,7 +1257,7 @@ function wireSerial() {
 
   serial.addEventListener('status', (event) => {
     const st = event.detail;
-    const pos = st.mpos || st.wpos;
+    const pos = st.wpos || st.mpos;
     if (pos) {
       $('posX').textContent = pos[0].toFixed(2);
       $('posY').textContent = pos[1].toFixed(2);
@@ -1276,6 +1277,12 @@ function wireSerial() {
       st.state === 'Run' || st.state === 'Jog' ? ' run' :
       st.state === 'Alarm' ? ' alarm' : ''
     );
+    if (st.state === 'Alarm' && !state.alarmNotified) {
+      state.alarmNotified = true;
+      toast('ALARM: press Unlock. If it comes back, untick Soft limits and Homing, then press Apply.', 'err');
+    } else if (st.state !== 'Alarm') {
+      state.alarmNotified = false;
+    }
     updateMachineControls();
   });
 
@@ -1487,13 +1494,13 @@ function wireConsole() {
 function openCalibration() {
   $('calWorkX').value = round(profile.work.x, 2);
   $('calWorkY').value = round(profile.work.y, 2);
-  const pos = serial.lastStatus?.mpos || serial.lastStatus?.wpos;
+  const pos = serial.lastStatus?.wpos || serial.lastStatus?.mpos;
   $('calCurZ').textContent = pos ? pos[2].toFixed(2) : '—';
   showModal('modalCalib');
 }
 
 function currentZ() {
-  const pos = serial.lastStatus?.mpos || serial.lastStatus?.wpos;
+  const pos = serial.lastStatus?.wpos || serial.lastStatus?.mpos;
   return pos ? pos[2] : null;
 }
 

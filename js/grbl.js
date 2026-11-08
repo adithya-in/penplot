@@ -75,7 +75,7 @@ export async function setWorkPosition(serial, axis, value = 0) {
 
 export async function queryPosition(serial) {
   const st = serial.lastStatus;
-  return st?.mpos || st?.wpos || null;
+  return st?.wpos || st?.mpos || null;
 }
 
 export function statusText(st) {
