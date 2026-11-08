@@ -277,13 +277,24 @@ input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px;
   backdrop-filter: blur(6px);
 }
 .legend span { display: flex; align-items: center; gap: 5px; }
+.legend-check { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.legend-check input { width: 11px; height: 11px; accent-color: var(--accent); }
 .legend i { width: 14px; height: 2px; border-radius: 2px; display: inline-block; }
 .legend .ink { background: #e7ecf3; }
 .legend .trav { background: repeating-linear-gradient(90deg, var(--blue) 0 3px, transparent 3px 6px); }
+.legend .live { background: repeating-linear-gradient(90deg, #ef7d2a 0 2px, transparent 2px 5px); }
 .legend .mach {
   width: 8px; height: 8px; border-radius: 50%;
   background: #ef7d2a; box-shadow: 0 0 0 2px rgba(239, 125, 42, 0.25);
 }
+.pos-debug {
+  margin: -2px 0 8px;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--muted-2);
+  word-break: break-word;
+}
+.z-slider { margin-top: 8px; }
 
 .stage-foot {
   display: flex;

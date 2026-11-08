@@ -158,8 +158,9 @@ export class GrblSerial extends EventTarget {
       // value so the displayed work position and the live marker do not jump
       // back to machine coordinates on reports without WCO.
       if (st.wco) this.wco = st.wco;
-      if (!st.wpos && st.mpos && this.wco) {
-        st.wpos = st.mpos.map((v, i) => v - this.wco[i]);
+      else if (this.wco) st.wco = this.wco;
+      if (!st.wpos && st.mpos && st.wco) {
+        st.wpos = st.mpos.map((v, i) => v - st.wco[i]);
       }
       this.lastStatus = st;
       this.state = st.state;
