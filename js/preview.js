@@ -8,6 +8,7 @@ export class Preview {
     this.profile = null;
     this.pen = null;
     this.machine = null;
+    this.source = null;       // { image, x, y, w, h } in mm, drawn under the toolpath
     this.travel = [];
     this.flat = [];
     this.totalLen = 0;
@@ -18,6 +19,7 @@ export class Preview {
     this.oy = 0;
     this._raf = null;
     this._sim = null;
+    this._sourceCache = new WeakMap();
     this.onProgress = null; // (fraction 0..1) during simulated playback
     this.onDone = null;
     this._observe();
@@ -63,6 +65,31 @@ export class Preview {
     this.paths = paths || [];
     this.profile = profile;
     this._buildFlat();
+    this.render();
+  }
+
+  /* Draw the uploaded raster/SVG source underneath the toolpath, exactly where
+   * the generated G-code will plot it. LaserGRBL and UGS both preview the
+   * source image this way; without it an image trace looks like random lines. */
+  setSource(source) {
+    if (!source || !source.image) {
+      this.source = null;
+      this.render();
+      return;
+    }
+    const image = source.image;
+    let cached = this._sourceCache.get(image);
+    if (!cached) {
+      const iw = image.naturalWidth || image.width || 1;
+      const ih = image.naturalHeight || image.height || 1;
+      const scale = Math.min(1, 900 / Math.max(iw, ih));
+      cached = document.createElement('canvas');
+      cached.width = Math.max(1, Math.round(iw * scale));
+      cached.height = Math.max(1, Math.round(ih * scale));
+      cached.getContext('2d').drawImage(image, 0, 0, cached.width, cached.height);
+      this._sourceCache.set(image, cached);
+    }
+    this.source = { ...source, image: cached };
     this.render();
   }
 
@@ -132,6 +159,37 @@ export class Preview {
     ctx.fillText(`${work.x} × ${work.y} mm`, x0 + 8, y0 + h - 8);
   }
 
+  _drawSource(ctx) {
+    const s = this.source;
+    if (!s || !s.image) return;
+    const work = this.profile?.work || { x: 150, y: 150 };
+    const x = this.tx(s.x);
+    const y = this.ty(s.y + s.h);
+    const w = Math.max(1, s.w * this.scale);
+    const h = Math.max(1, s.h * this.scale);
+
+    ctx.save();
+    // Keep the source inside the paper rectangle.
+    ctx.beginPath();
+    ctx.rect(this.tx(0), this.ty(work.y), work.x * this.scale, work.y * this.scale);
+    ctx.clip();
+
+    ctx.globalAlpha = 0.38;
+    try {
+      ctx.drawImage(s.image, x, y, w, h);
+    } catch {
+      /* image may not be decodable yet */
+    }
+    ctx.globalAlpha = 1;
+
+    // Dashed bounds so the user can see where the image will be plotted.
+    ctx.strokeStyle = 'rgba(90, 130, 200, 0.55)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    ctx.restore();
+  }
+
   _drawPaths(ctx, { ghost = false, limit = Infinity } = {}) {
     ctx.save();
     ctx.lineCap = 'round';
@@ -198,6 +256,7 @@ export class Preview {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.w, this.h);
     this._paper(ctx);
+    this._drawSource(ctx);
     this._drawTravel(ctx);
     this._drawPaths(ctx);
     this._drawMachine(ctx);
@@ -217,6 +276,7 @@ export class Preview {
     const lctx = layer.getContext('2d');
     lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this._paper(lctx);
+    this._drawSource(lctx);
     this._drawPaths(lctx, { ghost: true });
 
     this._sim = {

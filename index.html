@@ -51,7 +51,10 @@
             <span>or click to choose · PNG, JPG, WEBP</span>
           </div>
           <div class="row between">
-            <button class="btn tiny ghost" id="btnDemo">Load demo</button>
+            <div class="row">
+              <button class="btn tiny ghost" id="btnDemo">Load demo</button>
+              <button class="btn tiny ghost" id="btnCenterImage" title="Fit the image on the paper and centre it">Center</button>
+            </div>
             <span class="muted tiny" id="imgInfo">no image</span>
           </div>
 
@@ -105,6 +108,7 @@
             <label class="field"><span>Offset X</span><input type="number" id="imgOffsetX" value="0" step="1"></label>
             <label class="field"><span>Offset Y</span><input type="number" id="imgOffsetY" value="0" step="1"></label>
           </div>
+          <p class="hint">The preview shows your image behind the toolpath. Use <b>Center</b> to fit it on the paper. Outline is for logos and line art; use Scan lines or Dots for photos.</p>
         </section>
 
         <!-- svg -->

@@ -234,6 +234,16 @@ optionally blurred, traced with marching squares, simplified and optimised.
 `Simplify` controls how aggressively the outline is reduced (larger = fewer
 points). Closed contours are plotted as one continuous line.
 
+The centre preview draws the uploaded image **underneath** the toolpath, the way
+LaserGRBL and UGS visualise a raster job, so you can see exactly what will be
+plotted before sending it. The dashed blue rectangle is the image boundary.
+**Center** fits the image to the paper and centres it; `Offset X/Y` places it
+manually.
+
+If the image is a photo, the app detects the many mid-grey tones and switches
+from **Outline** to **Scan lines** automatically. Outline mode on a photo only
+keeps a handful of contours, which looks like random lines.
+
 ### Image — **Scan lines**
 Converts the image to horizontal strokes, one per raster line. Best for photos
 and solid shapes. Adjust `Line spacing` (smaller = more detail and much longer
@@ -371,6 +381,8 @@ logged. Do not send a reset (`Ctrl-X`) while streaming; use the Stop button.
 | Skipped steps / shifted drawing | Lower draw feed and acceleration; check belt tension, pulley set screws and motor supply current. A 28BYJ-48 has very little torque. |
 | Disconnects mid-drawing | Use a shorter/quality USB cable, add the 100 µF capacitor, and keep the motor supply wiring away from the USB cable. |
 | Nothing fits on the paper | Check `Paper X/Y`, image offsets and width. The warning banner tells you which axis is outside; the app clamps automatically. |
+| Image trace looks like random lines or almost nothing | Use **Scan lines** or **Dots** for a photo; **Outline** is only for logos and line art. The preview now shows the source image behind the paths so you can check the fit. |
+| Image is not centred on the paper | Press **Center** in the Image tab. It fits the image inside the paper and sets both offsets. |
 | Text appears upside down or off the page | Text uses a top-left origin; increase `Offset Y (top)` and check rotation. |
 | Auto-draw starts before I am ready | Untick **Draw after upload**, or press **Cancel** during the 5-second countdown. |
 

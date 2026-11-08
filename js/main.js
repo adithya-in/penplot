@@ -20,7 +20,7 @@ import {
   fmtTime
 } from './settings.js';
 import * as GRBL from './grbl.js';
-import { loadImageFile, traceImage, rasterizeImage, demoImage } from './image.js';
+import { loadImageFile, traceImage, rasterizeImage, demoImage, imageToneInfo } from './image.js';
 import { parseSvg } from './svg.js';
 import { textToPaths } from './font.js';
 import { cleanPaths, buildGcode, checkBounds } from './gcode.js';
@@ -52,6 +52,8 @@ const state = {
 
 let imageEl = null;
 let imageName = '';
+let imageSource = null;
+let imageIsPhoto = false;
 let svgText = '';
 let svgName = '';
 let genTimer = null;
@@ -476,25 +478,39 @@ async function generate({ auto = false } = {}) {
         invert: draw.invert,
         blur: draw.blur
       };
+      let result;
       if (draw.imageMode === 'trace') {
-        rawPaths = traceImage(imageEl, {
+        result = traceImage(imageEl, {
           ...opts,
           simplifyMm: draw.simplify
-        }).paths;
+        });
       } else {
-        rawPaths = rasterizeImage(imageEl, {
+        result = rasterizeImage(imageEl, {
           ...opts,
           spacingMm: draw.spacing,
           mode: draw.imageMode,
           dither: draw.dither,
           bridge: draw.bridge
-        }).paths;
+        });
       }
+      rawPaths = result.paths;
+      // The same rectangle the toolpath was generated in: source image
+      // bottom-left at (offsetX, offsetY), width/height from the converter.
+      imageSource = {
+        image: imageEl,
+        x: draw.imgOffsetX,
+        y: draw.imgOffsetY,
+        w: result.width,
+        h: result.height
+      };
+      preview.setSource(imageSource);
       rawPaths = translatePaths(rawPaths, draw.imgOffsetX, draw.imgOffsetY);
       rawPaths = cleanPaths(rawPaths);
       rawPaths = optimizePaths(rawPaths, { x: 0, y: 0 });
       rawPaths = twoOpt(rawPaths, { x: 0, y: 0 });
     } else if (state.source === 'svg') {
+      imageSource = null;
+      preview.setSource(null);
       if (!svgText) {
         setGenerating(false);
         clearToolpath('open an SVG');
@@ -513,6 +529,8 @@ async function generate({ auto = false } = {}) {
       rawPaths = optimizePaths(rawPaths, { x: 0, y: 0 });
       rawPaths = twoOpt(rawPaths, { x: 0, y: 0 });
     } else {
+      imageSource = null;
+      preview.setSource(null);
       if (!draw.text.trim()) {
         setGenerating(false);
         clearToolpath('type something to write');
@@ -546,6 +564,10 @@ async function generate({ auto = false } = {}) {
 
   // Clamping can collapse paths that were entirely outside the paper.
   paths = paths.filter((p) => p.points.length > 1);
+
+  if (state.source === 'image' && imageIsPhoto && draw.imageMode === 'trace' && paths.length < 4) {
+    toast('This looks like a photo. Outline mode only finds a few contours — choose Scan lines or Dots for photos.', 'warn');
+  }
 
   if (!paths.length) {
     setGenerating(false);
@@ -643,6 +665,10 @@ function setSource(next) {
     $(`pane-${name}`).classList.toggle('hidden', name !== next);
   });
 
+  // The source underlay only belongs to the Image tab.
+  if (next !== 'image') preview.setSource(null);
+  else if (imageSource) preview.setSource(imageSource);
+
   if (preview.isSimulating()) {
     preview.onProgress = null;
     preview.onDone = null;
@@ -674,6 +700,61 @@ function wireTabs() {
 }
 
 /* ─────────────────────────── file loading ─────────────────────────── */
+
+function imageThumbUrl(image) {
+  const iw = image.naturalWidth || image.width;
+  const ih = image.naturalHeight || image.height;
+  if (!iw || !ih) return '';
+  const scale = Math.min(1, 360 / Math.max(iw, ih));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(iw * scale));
+  canvas.height = Math.max(1, Math.round(ih * scale));
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/png');
+}
+
+function setImageThumb(image) {
+  const drop = $('dropImage');
+  const url = imageThumbUrl(image);
+  if (url) {
+    drop.style.backgroundImage = `url("${url}")`;
+    drop.classList.add('has-image');
+  } else {
+    drop.style.backgroundImage = '';
+    drop.classList.remove('has-image');
+  }
+}
+
+/* Show a preview of the image in the drop tile and pick a useful starting
+ * conversion mode. Photos need scan lines/dither; outline is for line art. */
+function prepareImage(image, name) {
+  imageEl = image;
+  imageName = name;
+  imageSource = null;
+  preview.setSource(null);
+  try {
+    imageIsPhoto = imageToneInfo(image).mid > 0.32;
+  } catch {
+    imageIsPhoto = false;
+  }
+  if (imageIsPhoto && draw.imageMode === 'trace') {
+    draw.imageMode = 'scan';
+    $('imageMode').value = 'scan';
+    saveDrawSettings(draw);
+    applyModeVisibility();
+    toast('Photo detected — switched to Scan lines. Choose Outline for logos and line art.', 'warn');
+  }
+  setImageThumb(image);
+}
+
+function pixelSize(image) {
+  const w = image.naturalWidth || image.width || 1;
+  const h = image.naturalHeight || image.height || 1;
+  return { w, h };
+}
 
 function wireDrop(dropId, inputId, onFile) {
   const drop = $(dropId);
@@ -727,8 +808,7 @@ async function handleImageFile(file) {
   }
   try {
     const image = await loadImageFile(file);
-    imageEl = image;
-    imageName = file.name;
+    prepareImage(image, file.name);
     $('imgInfo').textContent = `${file.name} · ${image.width}×${image.height}`;
     if (state.source !== 'image') {
       state.source = 'image';
@@ -771,14 +851,36 @@ function wireFiles() {
       return;
     }
     try {
-      imageEl = demoImage();
-      imageName = 'demo';
-      $('imgInfo').textContent = 'demo drawing · 640×480';
+      const image = demoImage();
+      prepareImage(image, 'demo');
+      $('imgInfo').textContent = `demo drawing · ${image.width}×${image.height}`;
       if (state.source !== 'image') setSource('image');
       else await generate({ auto: true });
     } catch (err) {
       toast(`Could not create the demo: ${err.message}`, 'err');
     }
+  });
+
+  $('btnCenterImage').addEventListener('click', () => {
+    if (!imageEl) {
+      toast('Upload an image first.', 'warn');
+      return;
+    }
+    const px = pixelSize(imageEl);
+    let width = Math.round(clamp(numValue('imgWidth', 100), 10, profile.work.x));
+    let height = (width * px.h) / px.w;
+    if (height > profile.work.y) {
+      height = profile.work.y;
+      width = Math.max(10, Math.round((height * px.w) / px.h));
+      height = (width * px.h) / px.w;
+    }
+    $('imgWidth').value = width;
+    $('imgOffsetX').value = round(Math.max(0, (profile.work.x - width) / 2), 1);
+    $('imgOffsetY').value = round(Math.max(0, (profile.work.y - height) / 2), 1);
+    readDrawInputs();
+    updateLabels();
+    generate();
+    toast('Image fitted and centred on the paper.');
   });
 
   document.addEventListener('paste', async (event) => {

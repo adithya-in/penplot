@@ -34,6 +34,26 @@ export function imageToGray(img, width, height) {
   return { gray, width, height };
 }
 
+/* Rough image classification used to choose a sensible conversion mode.
+ * Photos and gradients contain many mid-grey pixels; logos and line art are
+ * almost entirely black or white. */
+export function imageToneInfo(img) {
+  const iw = img.naturalWidth || img.width || 1;
+  const ih = img.naturalHeight || img.height || 1;
+  const width = 96;
+  const height = Math.max(8, Math.round((width * ih) / iw));
+  const { gray } = imageToGray(img, width, height);
+  let dark = 0, mid = 0, light = 0;
+  for (let i = 0; i < gray.length; i++) {
+    const v = gray[i];
+    if (v < 48) dark++;
+    else if (v > 208) light++;
+    else mid++;
+  }
+  const n = Math.max(1, gray.length);
+  return { dark: dark / n, mid: mid / n, light: light / n };
+}
+
 export function boxBlur(gray, width, height, radius) {
   if (!radius || radius < 1) return gray;
   const r = Math.round(radius);
