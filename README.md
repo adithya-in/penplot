@@ -42,22 +42,44 @@ Edge), which is a browser API limit, not an app or OS limit.
 
 ## Contents
 
-1. [Screenshots](#screenshots)
-2. [Feature matrix](#feature-matrix)
-3. [The pipeline in code](#the-pipeline-in-code)
-4. [Compatibility](#compatibility)
-5. [Quick start](#quick-start)
-6. [What you need](#what-you-need)
-7. [Wiring](#wiring)
-8. [Flash the Nano](#flash-the-nano)
-9. [First-run workflow](#first-run-workflow)
-10. [Drawing modes](#drawing-modes)
-11. [Settings and calibration](#settings-and-calibration)
-12. [Machine controls and console](#machine-controls-and-console)
-13. [Troubleshooting](#troubleshooting)
-14. [Safety](#safety)
-15. [Project layout](#project-layout)
-16. [Firmware provenance and licence](#firmware-provenance-and-licence)
+1. [The machine](#the-machine)
+2. [Screenshots](#screenshots)
+3. [Feature matrix](#feature-matrix)
+4. [The pipeline in code](#the-pipeline-in-code)
+5. [Compatibility](#compatibility)
+6. [Quick start](#quick-start)
+7. [What you need](#what-you-need)
+8. [Wiring](#wiring)
+9. [Flash the Nano](#flash-the-nano)
+10. [First-run workflow](#first-run-workflow)
+11. [Drawing modes](#drawing-modes)
+12. [Settings and calibration](#settings-and-calibration)
+13. [Machine controls and console](#machine-controls-and-console)
+14. [Troubleshooting](#troubleshooting)
+15. [Safety](#safety)
+16. [Project layout](#project-layout)
+17. [Firmware provenance and licence](#firmware-provenance-and-licence)
+
+---
+
+## The machine
+
+PenPlot running on the reference build: an Arduino Nano with a CNC shield,
+three ULN2003 driver boards, three 28BYJ-48 steppers and a 3D-printed
+rack-and-pinion gantry. The Nano runs the GRBL build in [`firmware/`](firmware/),
+and the browser drives it over Web Serial.
+
+![PenPlot drawing a short text job with a fineliner](docs/photos/01-drawing.jpg)
+
+The `HI` on the paper is one job from the text tool, with the pen lift on Z.
+
+| Electronics | Mid-job |
+| --- | --- |
+| <img src="docs/photos/02-build.jpg" width="400" alt="Top view of the Nano, CNC shield and ULN2003 boards"> | <img src="docs/photos/03-running.jpg" width="400" alt="Machine running with the coil driver LEDs lit"> |
+| Nano + CNC shield, three ULN2003 boards, 28BYJ-48 steppers | The red LEDs show the coils being energised as the toolpath streams |
+
+These are unedited phone photos — the wiring is still on the bench, not in an
+enclosure.
 
 ---
 
