@@ -277,7 +277,7 @@ Write-Host ''
 Write-Host 'Next:' -ForegroundColor Cyan
 Write-Host '  1. Wire the three ULN2003 boards (X: D2-D5, Y: A0-A3, Z: D8,D9,D12,D13).'
 Write-Host '  2. Use a separate 5 V >= 2 A supply for the motors; join the grounds.'
-Write-Host '  3. Open https://penplot-roan.vercel.app in desktop Chrome or Edge.'
+Write-Host '  3. Open https://adithya-in.github.io/penplot/ in desktop Chrome or Edge.'
 Write-Host '     (Or double-click start.bat to use the local copy.)'
 Write-Host '  4. Click Connect Nano and choose this COM port.'
 Write-Host '  5. Press Settings -> Apply once (keeps Invert Y on, writes $3=2).'

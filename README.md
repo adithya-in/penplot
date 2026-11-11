@@ -2,7 +2,7 @@
 
 **Image → SVG → G-code → CAM — in one web app. No install. Any device. Any OS.**
 
-[![Live app](https://img.shields.io/badge/live-penplot--roan.vercel.app-2ea44f)](https://penplot-roan.vercel.app)
+[![Live app](https://img.shields.io/badge/live-adithya--in.github.io-2ea44f)](https://adithya-in.github.io/penplot/)
 [![Release](https://img.shields.io/badge/release-v1.1-blue)](https://github.com/adithya-in/penplot/releases/tag/v1.1)
 [![License](https://img.shields.io/badge/licence-see%20below-lightgrey)](#firmware-provenance-and-licence)
 
@@ -378,7 +378,7 @@ const paths = traceMask(despeckle(mask, w, h), w, h, {
 
 ## Quick start
 
-1. Open **<https://penplot-roan.vercel.app>** in desktop Chrome or Edge.
+1. Open **<https://adithya-in.github.io/penplot/>** in desktop Chrome or Edge.
 2. Flash the Nano once (see [Flash the Nano](#flash-the-nano)).
 3. Click **Connect Nano**, pick the CH340/FT232 port, wait for **Idle**.
 4. Press **Settings → Apply** once to write the machine profile.
