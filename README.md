@@ -59,6 +59,7 @@ Edge), which is a browser API limit, not an app or OS limit.
 15. [Safety](#safety)
 16. [Project layout](#project-layout)
 17. [Firmware provenance and licence](#firmware-provenance-and-licence)
+18. [OpenCNC controller BOM](#opencnc-controller-bom)
 
 ---
 
@@ -983,3 +984,15 @@ licensed. The raster filter order (brightness/contrast/gamma) follows
 [LaserWeb4](https://github.com/LaserWeb/LaserWeb4), and the run-linking fill
 idea follows [GRBL-Plotter](https://github.com/svenhb/GRBL-Plotter). The rest of
 the web app is original for this project.
+
+---
+
+## OpenCNC controller BOM
+
+The **OpenCNC** board — ESP32-WROOM-32 + 2× DRV8825 + MP1584 buck, with a servo
+pen lift — is a separate machine from the 28BYJ-48 plotter that PenPlot's
+firmware drives. Its component list, with current Robu.in prices and links, is
+in [`docs/BOM.md`](docs/BOM.md).
+
+Components only, excluding motors, servo, power adaptor and mechanicals:
+**≈ ₹830**. With a 5-piece PCB order: **≈ ₹1,530** for one built board.
