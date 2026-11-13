@@ -1000,4 +1000,5 @@ run both — it speaks GRBL-compatible G-code either way.
 | [`docs/BOM.md`](docs/BOM.md) | Component list with current Robu.in prices and links |
 
 **Working area** 340 × 460 mm · **resolution** 0.0125 mm/step ·
-**components** ≈ ₹830 · **one built board** ≈ ₹1,530 with a 5-piece PCB order.
+**electronics** ≈ ₹830 · **mechanicals** ≈ ₹2,900–3,760 ·
+**complete machine** ≈ ₹4,000–5,300.
