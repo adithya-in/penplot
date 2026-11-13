@@ -19,24 +19,20 @@ where it could be verified; `—` means it was not confirmed.
 | — | DIP-16 sockets | | 3 | 5 | 15 | — | Local |
 | PS1 | 5 V power supply | 2 A, DC jack | 1 | 188 | 188 | In stock | [Robu](https://robu.in/product/orange-5v-2a-power-supply-with-dual-pin-dc-plug-adapter/) |
 | J1 | DC jack | DC-005, 5.5×2.1 mm | 1 | 19 | 19 | In stock | [Robu](https://robu.in/product/dc-005-female-dc-power-jack-supply-socket-5-5x2-1/) |
-| — | Motor connectors | 5-pin headers, 3 off | 3 | 10 | 30 | — | Local |
+| — | JST connector | 2.54 mm, **5-pin, male** (motor mating) | 3 | 1.71 | 5.13 | **Out of stock** | [Robu](https://robu.in/product/2-54mm-5-pin-jst-connector-male-connector/) |
 | — | Decoupling + bulk caps | 100 nF ×3, 470 µF ×1 | — | — | 20 | — | Local |
 | — | Hookup wire, ferrules | | 1 | 80 | 80 | — | Local |
-| **Electronics subtotal** | | | | | **₹1,080** | | |
+| **Electronics subtotal** | | | | | **₹1,055** | | |
 
-## PCB
+## Total
 
-| Item | ₹ |
+| | ₹ |
 |---|---|
-| 5× 2-layer, ~70×50 mm, JLCPCB economy shipping | ~700 |
-| Perfboard alternative (no custom PCB) | ~60 |
+| Electronics only | **≈ 1,055** |
 
-## Totals
-
-| Build | ₹ |
-|---|---|
-| Custom PCB, one board built | **≈ 1,780** |
-| Perfboard / use the ULN2003 modules that ship with the motors | **≈ 1,140** |
+No PCB is budgeted here. This list is the electronics; the board is either the
+stock ULN2003 modules that ship with the motors, perfboard, or a custom PCB
+quoted separately.
 
 ## Notes
 
@@ -60,7 +56,15 @@ where it could be verified; `—` means it was not confirmed.
   | Path | Cost | Notes |
   |---|---|---|
   | Use the included modules | ₹0 extra | Modules plug into headers, replaceable |
-  | Bare ICs on your PCB | ₹51 + PCB | Smaller, cleaner, one board |
+  | Bare ICs on your PCB | ₹51 | Smaller, cleaner, one board |
+
+  The included modules also arrive with a motor cable, so the three JST
+  connectors are only needed if you are building your own board.
+
+- **JST connector is out of stock** at Robu (₹1.71). Any 2.54 mm 5-pin XH/JST
+  housing works, or reuse the connector that comes on the motor lead. Verify
+  male vs female against your motor before ordering — the 28BYJ-48 typically
+  ships with a female housing, so the board needs the male side.
 
 - **ULN2003 wiring.** Each IC drives one motor: four inputs from the ESP32,
   four outputs to the motor coils. Pin 9 (COM) goes to **+5 V** — it is the
