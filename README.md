@@ -989,21 +989,23 @@ the web app is original for this project.
 
 ## Bill of materials
 
-This repository covers two separate machines. They share an ESP32 and a power
-supply, and nothing else — different motors, drivers, firmware and voltage.
+This repository is the **PenPlot** machine: an ESP32 (or Arduino Nano) driving
+three 28BYJ-48 steppers through ULN2003s, with a stepper doing the pen lift.
 
-| | **PenPlot** | **OpenCNC** |
-|---|---|---|
-| Motors | 3× 28BYJ-48, 5 V unipolar | 2× NEMA17, 12 V bipolar |
-| Drivers | 3× ULN2003 | 2× DRV8825 |
-| Pen lift | third stepper (Z) | servo |
-| Firmware | GRBL 1.1f on Arduino Nano | FluidNC on ESP32 |
-| Supply | 5 V, 2 A | 12 V, 3 A |
-| Cost, electronics | ≈ ₹1,080 | ≈ ₹830 |
-| Cost, one built board | ≈ ₹1,780 | ≈ ₹1,530 |
+| | PenPlot |
+|---|---|
+| Motors | 3× 28BYJ-48, 5 V unipolar |
+| Drivers | 3× ULN2003 |
+| Pen lift | third stepper (Z) |
+| Firmware | GRBL 1.1f on Arduino Nano, or FluidNC with a unipolar fork on ESP32 |
+| Supply | 5 V, 2 A |
+| Cost, electronics | ≈ ₹1,080 |
+| Cost, one built board | ≈ ₹1,780 (or ≈ ₹1,140 on perfboard) |
 
-PenPlot's vendored firmware targets an **Arduino Nano**, not an ESP32 — if you
-build the ESP32 variant you need a FluidNC unipolar fork. Details in the BOM.
-
-Full component lists, with current prices and supplier links, are in
+Full component list, with current prices and supplier links, is in
 [`docs/BOM.md`](docs/BOM.md).
+
+The other machine — **OpenCNC**, with NEMA17 motors, DRV8825 drivers, a servo
+pen lift and a 340 × 460 mm CoreXY frame — has moved to its own repository:
+<https://github.com/adithya-in/opencnc>. Nothing electrical is shared between
+the two.
