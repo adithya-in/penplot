@@ -1000,5 +1000,5 @@ run both — it speaks GRBL-compatible G-code either way.
 | [`docs/BOM.md`](docs/BOM.md) | Component list with current Robu.in prices and links |
 
 **Working area** 340 × 460 mm · **resolution** 0.0125 mm/step ·
-**electronics** ≈ ₹830 · **mechanicals** ≈ ₹2,900–3,760 ·
-**complete machine** ≈ ₹4,000–5,300.
+**electronics** ≈ ₹830 · **mechanicals** ≈ ₹2,970–3,660 ·
+**complete machine** ≈ ₹4,370–5,190.

@@ -292,7 +292,9 @@ square.
 | **Total** | **2.22 m** | buy 3 m |
 
 Footprint 520 × 400 mm. Corner brackets on **two faces** at every joint; a
-single bracket on a T-slot joint creeps under belt tension.
+single bracket on a T-slot joint creeps under belt tension. Printed PETG
+brackets are sufficient here because the baseboard carries the stiffness — see
+[5.4](#54-printed-parts).
 
 ### 5.2 CoreXY belt path
 
@@ -318,7 +320,34 @@ both with waste.
 - Pen arm kept under ~80 mm and supported at both ends; a long unsupported
   cantilever is the real source of pressure variation, not beam deflection
 
-### 5.4 Structural note
+### 5.4 Printed parts
+
+Everything structural except the extrusion, fasteners and bearings is 3D
+printed, in **PETG** — not PLA. A NEMA17 at 1 A reaches 50–60 °C, which is at
+PLA's glass transition, and PLA creeps under sustained belt tension.
+
+| Printed | Replaces |
+|---|---|
+| Corner brackets × 8 | bought brackets |
+| Motor mounts × 2 | machined mounts |
+| Idler mounts × 4 + belt tensioners | |
+| Carriage plates × 2 | |
+| Pen holder, lift arm, servo mount | |
+| Limit switch mounts × 2 | |
+| PCB standoffs, cable clips, feet | |
+
+Print settings: **4–5 perimeters, 40–60 % gyroid, 0.2 mm layers**, layers
+oriented perpendicular to the peel load, washers under every screw head, M5
+torqued to 2–3 N·m.
+
+The frame does not rely on the brackets for stiffness — bolting the profiles to
+the MDF baseboard does that. The brackets only locate it square, which is what
+makes printed ones acceptable on this machine and unacceptable on a router.
+
+Keep structural plastic away from the motor bodies: leave an air gap, and never
+put a driver or motor directly against a PETG part.
+
+### 5.5 Structural note
 
 Beam deflection is not the problem people expect. At 380 mm span with a 400 g
 toolhead:
@@ -436,7 +465,19 @@ Ordered so that a failure is cheap to find.
 | Servo Z | no force control; pen pressure is set mechanically |
 | 25 V bulk cap | do not reuse on a 24 V build — use 35 V |
 
-## 12. Bill of materials
+## 12. Cost
 
-See [`BOM.md`](BOM.md). Components only: **≈ ₹830** at Nov 2026 Robu prices,
-or **≈ ₹1,530** including a 5-piece PCB order.
+See [`BOM.md`](BOM.md). At Nov 2026 prices:
+
+| | ₹ |
+|---|---|
+| Electronics | 830 |
+| PCB (5 pcs, economy shipping) | 700 |
+| Mechanicals (Robu extrusion, printed parts) | 3,664 |
+| Mechanicals (local extrusion) | 2,969 |
+| **Complete machine, local extrusion** | **≈ 4,500** |
+| **Complete machine, Robu extrusion** | **≈ 5,200** |
+
+Excludes the two NEMA17s, the servo and the 12 V adaptor (~₹1,400 if bought
+new). Buying 2020 extrusion locally instead of from Robu is the single largest
+saving — ₹570–745.

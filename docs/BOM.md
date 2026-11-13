@@ -33,41 +33,62 @@ it was not confirmed at the time of writing.
 
 ## Mechanical parts
 
-2020 T-slot frame, CoreXY belt drive, printed sliders, A3 portrait working
-area. Robu prices are current; local items are market estimates.
+2020 T-slot frame, CoreXY belt drive, A3 portrait working area. Structural
+parts other than the extrusion, fasteners and bearings are 3D printed — see
+[Printed parts](#printed-parts).
 
 | Part | Spec | Qty | Unit ₹ | Total ₹ | Source |
 |---|---|---|---|---|---|
 | 2020 T-slot extrusion | 500 mm lengths | 5 | 239 | 1195 | [Robu](https://robu.in/product/easymech-20x20-t-slot-aluminium-extrusion-profile-500-mm/) |
 | MDF baseboard | 6 mm, 600 × 500 | 1 | 250 | 250 | Local |
-| Corner brackets | 2020 external L, 2-face | 8 | 25 | 200 | Local / Amazon |
 | M5 T-nuts | 10-pack, sliding | 4 | 22 | 88 | [Robu](https://robu.in/product/easymech-sliding-m5-t-nut-for-20x20-aluminium-profile-10-pcs/) |
 | M3 T-nuts + screws | set | 1 | 150 | 150 | Local |
-| M3/M5 fastener assortment | socket head | 1 | 250 | 250 | Local |
+| M3/M5 fastener assortment | socket head + washers | 1 | 250 | 250 | Local |
 | GT2 drive pulley | 20T, **5 mm bore**, 2-pack | 1 | 126 | 126 | [Robu](https://robu.in/product/aluminum-gt2-timing-pulley-for-6mm-belt-20-tooth-5mm-bore-2pcs/) |
 | GT2 smooth idler | 20T, 5 mm bore, 2-pack | 2 | 160 | 320 | [Robu](https://robu.in/product/aluminum-gt2-timing-idler-pulley-6mm-belt-20-tooth-5mm-bore-2pcs/) |
 | GT2 belt | 6 mm, 2 mm pitch, 10 m | 1 | 635 | 635 | [Robu](https://robu.in/product/10m-gt2-width-6mm-black-open-timing-belt-for-3d-printer/) |
 | 625ZZ bearings | 5×16×5, 4-pack (printed idlers) | 2 | 65 | 130 | Robu |
 | Springs | pen lift, 3×15 mm | 4 | 10 | 40 | Local |
 | Cable ties + spiral wrap | | 1 | 80 | 80 | Local |
-| PLA filament | ~200 g of printed parts | 1 | 300 | 300 | Local |
-| **Mechanical subtotal** | | | | **₹3,764** | |
+| PETG filament | ~400 g for all printed parts | 1 | 400 | 400 | Local |
+| **Mechanical subtotal** | | | | **₹3,664** | |
+
+### Printed parts
+
+Printed in **PETG**, not PLA — a NEMA17 at 1 A reaches 50–60 °C, which is at
+PLA's glass transition, and PLA creeps under sustained belt tension.
+
+| Printed part | Replaces | Notes |
+|---|---|---|
+| Corner brackets × 8 | ₹200 of bought brackets | External gussets, two faces per corner, aluminium faces still touching |
+| Motor mounts × 2 | machined/printed mounts | Add an air gap around the motor body |
+| Idler mounts + belt tensioners | | M5 bolts as axles, never printed pins |
+| Carriage plates × 2 | | 5 perimeters; flex shows up as backlash |
+| Pen holder + lift arm | | |
+| Servo mount | | |
+| Limit switch mounts × 2 | | |
+| PCB standoffs × 4 | | |
+| Cable clips, feet | | |
+
+Print settings that matter: **4–5 perimeters, 40–60 % gyroid infill, 0.2 mm
+layers**, layers oriented perpendicular to the peel load, and **washers under
+every screw head**. Torque M5 to 2–3 N·m — more just embosses the plastic.
+
+The frame's stiffness comes from bolting the profiles to the MDF baseboard, not
+from the brackets. The brackets only locate the frame square, which is why
+printed ones are acceptable here.
 
 ### Cutting the frame cost
 
 Robu extrusion is **₹478/m**. A local aluminium dealer or IndiaMART supplier
 sells 2020 T-slot at **₹180–250/m**, so 2.5 m is ₹450–625 instead of ₹1,195 —
-**saves ₹570–745**.
-
-Two other savings:
+**saves ₹570–745**. This is the largest single saving in the build.
 
 | Change | Saves |
 |---|---|
 | Local extrusion instead of Robu | ₹570–745 |
 | Skip 625ZZ bearings if the idler packs include them | ₹130 |
-| Print the corner brackets instead of buying | ₹200 |
-
-**Realistic mechanical total: ₹2,900–3,200** with local extrusion.
+| Print idler pulleys instead of buying | ₹160 |
 
 ## PCB fabrication
 
@@ -80,10 +101,11 @@ Two other savings:
 
 | Scenario | Electronics + PCB | Mechanicals | Grand total |
 |---|---|---|---|
-| Robu extrusion, economy PCB shipping | ₹1,530 | ₹3,764 | **₹5,294** |
-| Local extrusion, economy PCB shipping | ₹1,530 | ₹2,900 | **₹4,430** |
-| Local extrusion + printed brackets + no spare bearings | ₹1,530 | ₹2,470 | **₹4,000** |
-| 5 boards built, local extrusion | ₹1,060/board | ₹2,900 | **₹3,960** |
+| Robu extrusion, economy PCB shipping | ₹1,530 | ₹3,664 | **₹5,194** |
+| Local extrusion, economy PCB shipping | ₹1,530 | ₹2,969 | **₹4,499** |
+| Local extrusion, no spare bearings | ₹1,530 | ₹2,839 | **₹4,369** |
+| 5 boards built, local extrusion | ₹1,060/board | ₹2,969 | **₹4,029** |
+
 
 
 ## Out-of-stock items
