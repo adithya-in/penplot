@@ -59,7 +59,7 @@ Edge), which is a browser API limit, not an app or OS limit.
 15. [Safety](#safety)
 16. [Project layout](#project-layout)
 17. [Firmware provenance and licence](#firmware-provenance-and-licence)
-18. [OpenCNC](#opencnc)
+18. [OpenCNC controller BOM](#opencnc-controller-bom)
 
 ---
 
@@ -987,18 +987,12 @@ the web app is original for this project.
 
 ---
 
-## OpenCNC
+## OpenCNC controller BOM
 
-**OpenCNC** is the NEMA17 machine: an ESP32-WROOM-32 with two DRV8825 drivers
-and a servo pen lift, running FluidNC in CoreXY. It is a separate machine from
-the 28BYJ-48 plotter that PenPlot's firmware drives, but the browser app can
-run both — it speaks GRBL-compatible G-code either way.
+The **OpenCNC** board — ESP32-WROOM-32 + 2× DRV8825 + MP1584 buck, with a servo
+pen lift — is a separate machine from the 28BYJ-48 plotter that PenPlot's
+firmware drives. Its component list, with current Robu.in prices and links, is
+in [`docs/BOM.md`](docs/BOM.md).
 
-| Document | Contents |
-|---|---|
-| [`docs/opencnc.md`](docs/opencnc.md) | Full technical reference: pin map, power tree, DRV8825 setup, FluidNC config, mechanics, performance, calibration, failure modes |
-| [`docs/BOM.md`](docs/BOM.md) | Component list with current Robu.in prices and links |
-
-**Working area** 340 × 460 mm · **resolution** 0.0125 mm/step ·
-**electronics** ≈ ₹830 · **mechanicals** ≈ ₹2,970–3,660 ·
-**complete machine** ≈ ₹4,370–5,190.
+Components only, excluding motors, servo, power adaptor and mechanicals:
+**≈ ₹830**. With a 5-piece PCB order: **≈ ₹1,530** for one built board.
