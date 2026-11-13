@@ -20,15 +20,16 @@ where it could be verified; `—` means it was not confirmed.
 | PS1 | 5 V power supply | 2 A, DC jack | 1 | 188 | 188 | In stock | [Robu](https://robu.in/product/orange-5v-2a-power-supply-with-dual-pin-dc-plug-adapter/) |
 | J1 | DC jack | DC-005, 5.5×2.1 mm | 1 | 19 | 19 | In stock | [Robu](https://robu.in/product/dc-005-female-dc-power-jack-supply-socket-5-5x2-1/) |
 | — | JST connector | 2.54 mm, **5-pin, male** (motor mating) | 3 | 1.71 | 5.13 | **Out of stock** | [Robu](https://robu.in/product/2-54mm-5-pin-jst-connector-male-connector/) |
+| — | Female berg strip | 2.54 mm, 1×40 (sockets for ESP32 + ULN2003 modules) | 2 | 12 | 24 | In stock | [Robocraze](https://robocraze.com/products/40x1-female-berg-strip) |
 | — | Decoupling + bulk caps | 100 nF ×3, 470 µF ×1 | — | — | 20 | — | Local |
 | — | Hookup wire, ferrules | | 1 | 80 | 80 | — | Local |
-| **Electronics subtotal** | | | | | **₹1,055** | | |
+| **Electronics subtotal** | | | | | **₹1,079** | | |
 
 ## Total
 
 | | ₹ |
 |---|---|
-| Electronics only | **≈ 1,055** |
+| Electronics only | **≈ 1,079** |
 
 No PCB is budgeted here. This list is the electronics; the board is either the
 stock ULN2003 modules that ship with the motors, perfboard, or a custom PCB
@@ -60,6 +61,11 @@ quoted separately.
 
   The included modules also arrive with a motor cable, so the three JST
   connectors are only needed if you are building your own board.
+
+- **Two 40-pin female strips cover everything.** Cut one into 2×19 for the
+  ESP32 dev board socket; the second takes the ULN2003 module headers. Keep the
+  ESP32 socketed — it is the most expensive single part and the most likely to
+  die from a wiring mistake.
 
 - **JST connector is out of stock** at Robu (₹1.71). Any 2.54 mm 5-pin XH/JST
   housing works, or reuse the connector that comes on the motor lead. Verify

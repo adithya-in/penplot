@@ -999,7 +999,7 @@ three 28BYJ-48 steppers through ULN2003s, with a stepper doing the pen lift.
 | Pen lift | third stepper (Z) |
 | Firmware | GRBL 1.1f on Arduino Nano, or FluidNC with a unipolar fork on ESP32 |
 | Supply | 5 V, 2 A |
-| Cost, electronics | ≈ ₹1,055 |
+| Cost, electronics | ≈ ₹1,079 |
 
 Full component list, with current prices and supplier links, is in
 [`docs/BOM.md`](docs/BOM.md).
