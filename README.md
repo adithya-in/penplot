@@ -59,7 +59,7 @@ Edge), which is a browser API limit, not an app or OS limit.
 15. [Safety](#safety)
 16. [Project layout](#project-layout)
 17. [Firmware provenance and licence](#firmware-provenance-and-licence)
-18. [OpenCNC controller BOM](#opencnc-controller-bom)
+18. [Bill of materials](#bill-of-materials)
 
 ---
 
@@ -987,12 +987,20 @@ the web app is original for this project.
 
 ---
 
-## OpenCNC controller BOM
+## Bill of materials
 
-The **OpenCNC** board — ESP32-WROOM-32 + 2× DRV8825 + MP1584 buck, with a servo
-pen lift — is a separate machine from the 28BYJ-48 plotter that PenPlot's
-firmware drives. Its component list, with current Robu.in prices and links, is
-in [`docs/BOM.md`](docs/BOM.md).
+This repository covers two separate machines. They share an ESP32 and a power
+supply, and nothing else — different motors, drivers, firmware and voltage.
 
-Components only, excluding motors, servo, power adaptor and mechanicals:
-**≈ ₹830**. With a 5-piece PCB order: **≈ ₹1,530** for one built board.
+| | **PenPlot** | **OpenCNC** |
+|---|---|---|
+| Motors | 3× 28BYJ-48, 5 V unipolar | 2× NEMA17, 12 V bipolar |
+| Drivers | 3× ULN2003 | 2× DRV8825 |
+| Pen lift | third stepper (Z) | servo |
+| Firmware | GRBL 1.1f on Arduino Nano | FluidNC on ESP32 |
+| Supply | 5 V, 2 A | 12 V, 3 A |
+| Cost, electronics | ≈ ₹1,080 | ≈ ₹830 |
+| Cost, one built board | ≈ ₹1,780 | ≈ ₹1,530 |
+
+Full component lists, with current prices and supplier links, are in
+[`docs/BOM.md`](docs/BOM.md).
