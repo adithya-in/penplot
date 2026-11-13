@@ -49,6 +49,18 @@ X and Y move the gantry, Z lifts the pen — there is no servo on this machine.
 
 ## Notes on the PenPlot list
 
+- **Firmware mismatch — read this first.** The firmware vendored in
+  `firmware/` is **GRBL 1.1f for an Arduino Nano (ATmega328P)**. It will not
+  run on an ESP32. Two valid builds:
+
+  | Build | Controller | Firmware |
+  |---|---|---|
+  | As shipped | Arduino Nano | `firmware/` in this repo |
+  | ESP32 variant | ESP32 | **FluidNC with unipolar support** — mainline FluidNC is step/dir only, so use a ULN2003 fork such as [openBrushograph/FluidNC-Z-Offset](https://github.com/openBrushograph/FluidNC-Z-Offset) |
+
+  If you buy the ESP32 listed above, budget for that fork; the GRBL hex in this
+  repo cannot be flashed to it.
+
 - **The 28BYJ-48 already ships with a ULN2003 module.** At ₹85 from
   Robocraze the driver board is included, so the three bare ULN2003 ICs
   (₹51) are only needed if you are building the drivers into your own PCB.
@@ -57,7 +69,7 @@ X and Y move the gantry, Z lifts the pen — there is no servo on this machine.
   | Path | Cost | Notes |
   |---|---|---|
   | Use the included modules | ₹0 extra | Modules plug into headers, replaceable |
-  | Bare ICS on your PCB | ₹51 + PCB | Smaller, cleaner, one board |
+  | Bare ICs on your PCB | ₹51 + PCB | Smaller, cleaner, one board |
 
 - **ULN2003 wiring.** Each IC drives one motor: four inputs from the ESP32,
   four outputs to the motor coils. Pin 9 (COM) goes to **+5 V** — it is the

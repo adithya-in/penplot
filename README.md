@@ -1002,5 +1002,8 @@ supply, and nothing else — different motors, drivers, firmware and voltage.
 | Cost, electronics | ≈ ₹1,080 | ≈ ₹830 |
 | Cost, one built board | ≈ ₹1,780 | ≈ ₹1,530 |
 
+PenPlot's vendored firmware targets an **Arduino Nano**, not an ESP32 — if you
+build the ESP32 variant you need a FluidNC unipolar fork. Details in the BOM.
+
 Full component lists, with current prices and supplier links, are in
 [`docs/BOM.md`](docs/BOM.md).
